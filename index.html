@@ -304,12 +304,15 @@
   <!-- DECOUVRIR -->
   <section class="view" id="view-decouvrir">
     <div class="toolbar">
-      <button class="btn secondary" onclick="loadDiscoverContent(true)">🔄 Actualiser</button>
+      <button class="btn secondary" onclick="loadDiscoverContent(true); loadCinemaProgramme();">🔄 Actualiser</button>
       <div class="settings-note" style="margin:0;">Basé sur les notes publiques TMDB · région France</div>
     </div>
 
     <h3>🎬 Films au cinéma en ce moment</h3>
     <div id="discover-now-playing" class="grid"></div>
+
+    <h3 style="margin-top:28px;">🍿 Mon cinéma</h3>
+    <div id="discover-cinema"></div>
 
     <h3 style="margin-top:28px;">📈 Séries tendances du moment</h3>
     <div id="discover-trending-tv" class="grid"></div>
@@ -331,6 +334,11 @@
     <label class="field">Clé API TMDB (v3)</label>
     <input type="text" id="cfg-tmdb-key" style="width:100%;max-width:420px;" placeholder="Colle ta clé ici">
     <div class="settings-note">Gratuite sur themoviedb.org → Paramètres → API.</div>
+
+    <h3 style="margin-top:24px;">Mon cinéma</h3>
+    <label class="field">Lien vers le programme de ton cinéma</label>
+    <input type="text" id="cfg-cinema-url" style="width:100%;max-width:500px;" placeholder="https://toulouse.cinemas-utopia.org/horaires-tournefeuille/">
+    <div class="settings-note">Colle l'URL de la page "à l'affiche" ou "horaires" de ton cinéma. Un lien direct sera affiché dans "Découvrir", avec un aperçu automatique si le site le permet.</div>
 
     <h3 style="margin-top:24px;">Dépôt GitHub de données (séparé du code)</h3>
     <div class="settings-grid" style="max-width:600px;">
@@ -433,7 +441,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -477,6 +485,7 @@ function setCfg(cfg){
 function saveSettings(){
   const cfg = {
     tmdb_key: document.getElementById('cfg-tmdb-key').value.trim(),
+    cinema_url: document.getElementById('cfg-cinema-url').value.trim(),
     gh_owner: document.getElementById('cfg-gh-owner').value.trim(),
     gh_repo: document.getElementById('cfg-gh-repo').value.trim(),
     gh_branch: document.getElementById('cfg-gh-branch').value.trim() || 'main',
@@ -490,6 +499,7 @@ function saveSettings(){
 function loadSettingsIntoForm(){
   const cfg = getCfg();
   document.getElementById('cfg-tmdb-key').value = cfg.tmdb_key || '';
+  document.getElementById('cfg-cinema-url').value = cfg.cinema_url || '';
   document.getElementById('cfg-gh-owner').value = cfg.gh_owner || '';
   document.getElementById('cfg-gh-repo').value = cfg.gh_repo || '';
   document.getElementById('cfg-gh-branch').value = cfg.gh_branch || 'main';
@@ -578,7 +588,7 @@ document.getElementById('main-nav').addEventListener('click', (e)=>{
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-' + btn.dataset.view).classList.add('active');
   if(btn.dataset.view === 'dashboard') renderDashboard();
-  if(btn.dataset.view === 'decouvrir') loadDiscoverContent(false);
+  if(btn.dataset.view === 'decouvrir'){ loadDiscoverContent(false); loadCinemaProgramme(); }
 });
 document.getElementById('btn-settings').addEventListener('click', ()=>{
   document.querySelectorAll('#main-nav button').forEach(b=>b.classList.remove('active'));
@@ -1361,6 +1371,65 @@ async function quickAddFromDiscover(tmdbId, type){
   renderDiscoverSection('discover-on-air', discoverData.onAir, 'tv');
 }
 
+function parseRssItems(xmlText){
+  try{
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'application/xml');
+    if(doc.querySelector('parsererror')) return [];
+    return Array.from(doc.querySelectorAll('item')).map(it=>({
+      title: it.querySelector('title')?.textContent || '',
+      link: it.querySelector('link')?.textContent || '#',
+      pubDate: it.querySelector('pubDate')?.textContent || ''
+    }));
+  }catch(e){
+    return [];
+  }
+}
+
+async function loadCinemaProgramme(){
+  const cfg = getCfg();
+  const container = document.getElementById('discover-cinema');
+  if(!container) return;
+  if(!cfg.cinema_url){
+    container.innerHTML = '<div class="empty-state">Colle le lien de ton cinéma dans les Paramètres pour voir son programme apparaître ici.</div>';
+    return;
+  }
+  container.innerHTML = '<div class="empty-state">Chargement...</div>';
+
+  let origin = null;
+  try{ origin = new URL(cfg.cinema_url).origin; }catch(e){ /* URL invalide, on ignore le flux RSS */ }
+
+  let rssHtml = '';
+  if(origin){
+    try{
+      const res = await fetch(origin + '/feed');
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      const items = parseRssItems(text).slice(0, 6);
+      if(items.length){
+        rssHtml = '<div class="grid">' + items.map(it=>`
+          <div class="discover-card">
+            <div class="info">
+              <div class="title">${escapeHtml(it.title)}</div>
+              <div class="meta">${escapeHtml((it.pubDate||'').substring(0,16))}</div>
+              <a class="btn secondary" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box;" href="${it.link}" target="_blank">Lire ↗</a>
+            </div>
+          </div>
+        `).join('') + '</div>';
+      }
+    }catch(err){
+      rssHtml = '<div class="settings-note">Aperçu automatique indisponible ici (probablement bloqué par le navigateur, CORS). Utilise le lien direct ci-dessous pour voir le programme complet.</div>';
+    }
+  }
+
+  container.innerHTML = `
+    <div style="margin-bottom:14px;">
+      <a class="btn" style="text-decoration:none;display:inline-block;" href="${cfg.cinema_url}" target="_blank">🎬 Voir le programme complet ↗</a>
+    </div>
+    ${rssHtml}
+  `;
+}
+
 function markSeasonWatched(serieId, seasonNum, watched){
   const s = state.series.find(x=>String(x.id)===String(serieId));
   if(!s) return;
@@ -1420,46 +1489,76 @@ function b64_to_utf8(str){
   return decodeURIComponent(escape(atob(str)));
 }
 
+let ghSaveInProgress = false;
+let ghSavePending = false;
+
 async function ghSave(silent){
   const cfg = getCfg();
   if(!cfg.gh_owner || !cfg.gh_repo || !cfg.gh_token){
     if(!silent) showToast("Configure d'abord GitHub dans les Paramètres", 'error');
     return;
   }
+
+  // Si une sauvegarde est déjà en cours, on ne lance pas de requête concurrente
+  // (c'est la cause la plus fréquente d'erreur "409 sha invalide") : on note juste
+  // qu'une nouvelle sauvegarde sera nécessaire juste après celle en cours.
+  if(ghSaveInProgress){
+    ghSavePending = true;
+    return;
+  }
+  ghSaveInProgress = true;
+
   const path = cfg.gh_path || 'data.json';
   const branch = cfg.gh_branch || 'main';
   const apiUrl = `https://api.github.com/repos/${cfg.gh_owner}/${cfg.gh_repo}/contents/${path}`;
   if(!silent) showToast('Sauvegarde sur GitHub...', '');
+
   try{
-    let sha = null;
-    const getRes = await fetch(apiUrl + '?ref=' + branch, {
-      headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' }
-    });
-    if(getRes.ok){
-      const getData = await getRes.json();
-      sha = getData.sha;
-    } else if(getRes.status !== 404){
-      throw new Error('Lecture du fichier échouée (' + getRes.status + ')');
-    }
-    const content = utf8_to_b64(JSON.stringify(state, null, 2));
-    const putRes = await fetch(apiUrl, {
-      method:'PUT',
-      headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' },
-      body: JSON.stringify({
-        message: 'Mise à jour watchlist - ' + new Date().toISOString(),
-        content,
-        branch,
-        sha: sha || undefined
-      })
-    });
-    if(!putRes.ok){
-      const errData = await putRes.json().catch(()=>({}));
-      throw new Error(errData.message || ('Erreur ' + putRes.status));
-    }
+    await ghSaveAttempt(apiUrl, branch, cfg, silent, false);
     document.getElementById('last-save-note').textContent = 'Dernière sauvegarde GitHub : ' + new Date().toLocaleString() + (silent ? ' (auto)' : '');
     showToast(silent ? 'Sauvegarde automatique effectuée ✅' : 'Sauvegardé sur GitHub ✅', 'success');
   }catch(err){
     showToast('Erreur GitHub' + (silent ? ' (auto)' : '') + ' : ' + err.message, 'error');
+  }finally{
+    ghSaveInProgress = false;
+    if(ghSavePending){
+      ghSavePending = false;
+      ghSave(true); // on rejoue la sauvegarde manquée, silencieusement
+    }
+  }
+}
+
+// Effectue GET (sha) + PUT. En cas de conflit 409 (sha périmé, ex: fichier modifié
+// entre-temps sur GitHub ou depuis un autre onglet/appareil), on retente une fois
+// automatiquement avec le sha à jour avant d'abandonner.
+async function ghSaveAttempt(apiUrl, branch, cfg, silent, isRetry){
+  let sha = null;
+  const getRes = await fetch(apiUrl + '?ref=' + branch, {
+    headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' }
+  });
+  if(getRes.ok){
+    const getData = await getRes.json();
+    sha = getData.sha;
+  } else if(getRes.status !== 404){
+    throw new Error('Lecture du fichier échouée (' + getRes.status + ')');
+  }
+  const content = utf8_to_b64(JSON.stringify(state, null, 2));
+  const putRes = await fetch(apiUrl, {
+    method:'PUT',
+    headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' },
+    body: JSON.stringify({
+      message: 'Mise à jour watchlist - ' + new Date().toISOString(),
+      content,
+      branch,
+      sha: sha || undefined
+    })
+  });
+  if(!putRes.ok){
+    if(putRes.status === 409 && !isRetry){
+      return ghSaveAttempt(apiUrl, branch, cfg, silent, true); // un seul essai de rattrapage
+    }
+    const errData = await putRes.json().catch(()=>({}));
+    throw new Error(errData.message || ('Erreur ' + putRes.status));
   }
 }
 
