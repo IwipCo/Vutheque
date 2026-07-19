@@ -1,3 +1,136 @@
+Claude répond.
+Brainstormed literary naming conventions blending French aesthetics
+
+Dans ces deux registres :
+
+Style "Vuthèque" (mot-valise, suffixes cinéma)
+
+    Épisodothèque
+    Vuézine (vu + magazine, moins convaincant à l'oral)
+    Cinéthèque
+    Écranothèque
+    Sériothèque
+    Visionnathèque
+    Vustory (vu + histoire)
+    Bingothèque (clin d'œil à "binge")
+
+Style "Le Carnet du Spectateur" (registre poétique / carnet personnel)
+
+    Le Journal du Spectateur
+    Carnet de Visionnage
+    Le Registre des Écrans
+    Mon Carnet Ciné
+    Le Cahier des Séances
+    Le Grand Livre des Visionnages
+    Carnet de Bord Ciné & Séries
+    Les Pages du Spectateur
+    Almanach de l'Écran
+
+Mes préférés dans ce registre : Vuthèque (que tu avais déjà) reste le plus punchy et facile à retenir, et Le Cahier des Séances a un côté chaleureux et "carnet perso" qui colle bien à un outil de suivi personnel plutôt qu'à une appli commerciale.
+
+Dis-moi si l'un te parle, je peux l'intégrer directement dans le titre de l'appli (<h1>) et le <title> de la page.
+
+on garde vuthèque
+A réfléchi pendant 2 s
+
+Parfait, je mets à jour le titre de l'application.
+Exécuté 3 commandes, 3 fichiers modifiés, lu un fichier
+
+C'est fait, l'appli s'appelle maintenant Vuthèque 🎬 — titre de page et en-tête mis à jour, ainsi que le nom du fichier d'export JSON (vutheque-data.json) pour rester cohérent.
+Index
+Code · HTML 
+
+est-ce que tu peux modifier et faire un commit dans un dépoit github directement ?
+A réfléchi pendant 5 s
+
+Je n'ai pas d'accès réseau direct depuis cet environnement (le bash ici est isolé, sans sortie internet), donc je ne peux pas faire un git push moi-même via ligne de commande.
+
+En revanche, il existe un connecteur GitHub que je peux utiliser pour agir directement sur ton dépôt (créer/modifier des fichiers, committer) si tu l'actives — une fenêtre de confirmation vient de s'afficher pour ça. Si tu acceptes, je pourrai committer les futures modifications directement dans ton dépôt de code (par exemple). Sinon, je continue comme avant : je te fournis le fichier ici, et tu le commit toi-même sur GitHub.
+
+I've turned on connector search. Please retry now.
+Searching connectors
+
+Aucun connecteur GitHub dédié ne ressort dans les résultats — les options disponibles ne correspondent pas à ton besoin (finance, genomics, tickets IT, etc.), rien qui gère les commits/dépôts Git.
+
+Donc pour l'instant, je ne peux pas committer directement dans ton dépôt. Ça ne change rien à la solution qu'on a déjà mise en place : le bouton "☁️ Sauvegarder sur GitHub" dans l'appli Vuthèque fait exactement ça — il committe le JSON de données dans ton dépôt séparé via ton token, directement depuis ton navigateur, sans que je sois dans la boucle.
+
+Si tu veux que moi je puisse pousser des mises à jour du code de l'appli (par exemple quand on ajoute une fonctionnalité), le plus simple reste que tu récupères le fichier ici et que tu le commit toi-même — ou que tu me donnes accès à un outil Git via un autre moyen si Anthropic en ajoute un plus tard.
+
+ajoute la possibilité de marquer comme vu toute une saison d'un coup, et non épisode par épisode..
+Ajouter un bouton Vérifier les nouveax épisode pour l'ensemble des séries ajouté, et non 1 par 1..
+
+Est-ce que la sauvegarde est automatique ,
+Est-ce que l'on peut également sauvaegarder les parametres dans un autre fichier.
+Je veux aussi a partir d'un lien, pouvoir charger automatiquement le fichier de parametre correspondant (j'imagine en ajoutant dans l'URL l'info necessaire, tel le token github)
+Revoir le fichier actuel pour préparer les modifications
+
+Ajout du bouton "vérifier toutes les séries" dans la barre d'outils.
+2 fichiers modifiés
+
+Maintenant, ajout de la case à cocher "sauvegarde automatique" et des boutons pour la config dans les Paramètres.
+Orchestrated checkbox integration pour les paramètres automatiques
+
+Maintenant je mets à jour le JS pour saveSettings / loadSettingsIntoForm.
+Inclure le paramètre auto_save dans la sauvegarde des réglages
+
+Maintenant j'ajoute le bouton "tout marquer vu" par saison, et la fonction de vérification globale des séries.
+A consulté 4 fichiers
+
+Je refactorise pour extraire une fonction interne réutilisable, puis j'ajoute checkAllSeriesUpdates.
+Extraire la logique de vérification pour la réutiliser en masse, et ajouter la vérification globale
+
+Maintenant j'ajoute le tracking openSeasonNumbers, je mets à jour openSerieDetail, renderSerieDetailModal, toggleSeasonBlock et toggleEpisode.
+Ajouter la variable de suivi des saisons ouvertes et préserver l'état d'ouverture après action
+
+Maintenant, la sauvegarde automatique : je modifie saveLocalState() pour planifier un auto-commit GitHub si activé.
+A consulté 2 fichiers, a exécuté une commande, fichier modifié
+
+Maintenant je modifie ghSave pour accepter un mode silencieux, puis j'ajoute l'appel loadConfigFromUrlIfPresent() à l'init.
+A consulté 2 fichiers, 2 fichiers modifiés, a exécuté une commande
+
+Maintenant, j'appelle loadConfigFromUrlIfPresent() au chargement de la page.
+A exécuté une commande, fichier modifié
+
+Vérifions maintenant la syntaxe complète du fichier.
+Orchestrated tests pour valider encodage et logique réseau
+
+Le round-trip fonctionne bien. Je republie le fichier final.
+A exécuté une commande, lu un fichier
+
+Voici ce qui a changé :
+
+1. Marquer une saison entière
+Dans la fiche détail d'une série, chaque saison a maintenant deux petits boutons "Tout marquer vu" / "Tout marquer non vu" à côté du titre.
+
+2. Vérifier toutes les séries d'un coup
+Nouveau bouton "🔄 Vérifier toutes les séries" dans la barre d'outils de l'onglet Séries. Il parcourt chaque série, récupère les nouveaux épisodes, et affiche un résumé total ("X nouveaux épisodes trouvés").
+
+3. La sauvegarde est-elle automatique ?
+Deux niveaux, à bien distinguer :
+
+    Localement (dans ton navigateur) : oui, automatique et instantané — chaque action est écrite dans le localStorage.
+    Sur GitHub : non, c'était manuel jusqu'ici (bouton "Sauvegarder sur GitHub"). J'ai ajouté une case "Sauvegarde automatique sur GitHub" dans les Paramètres. Une fois cochée, l'appli committe toute seule ~4 secondes après ta dernière action (pour grouper plusieurs changements en un seul commit plutôt que d'en spammer un par clic).
+
+4. Sauvegarder les paramètres dans un autre fichier
+Ajouté dans Paramètres : "Exporter les paramètres" (télécharge vutheque-config.json avec ta clé TMDB, ton token GitHub, etc.) et "Importer des paramètres" pour les recharger.
+
+5. Charger les paramètres via un lien
+Bouton "🔗 Générer un lien de configuration" : il encode tes paramètres en base64 dans le fragment d'URL (#cfg=...), pas dans les paramètres classiques (?...). C'est important : le fragment # n'est jamais envoyé à un serveur (ni GitHub Pages, ni un éventuel outil d'analytics), il reste 100% côté navigateur. Quand tu ouvres ce lien, l'appli charge automatiquement les paramètres puis nettoie l'URL pour ne pas laisser le token traîner dans la barre d'adresse.
+
+⚠️ Point de vigilance : ce lien (et le fichier de config exporté) contient ton token GitHub en clair. Garde-le pour toi — ne le mets jamais dans un dépôt public, un chat, ou un message partagé.
+Index
+Code · HTML 
+
+Change le lien IMDB en lien TMDB dans la page de description des films / série.
+Adapte la taille de l'affiche pour ne pas déformer l'image.
+Ajoute la possibilité de mettre un lien TMDB pour récuperer le nom etc.. si je ne trouve pas le film par la recherche..
+Ajoute des raccourcis clavier : N > créer un nouveau film / série. V > vu/nonvu
+Crystallizing
+Souhaitez-vous être averti lorsque Claude répond ?
+
+
+Claude est une IA et peut faire des erreurs. Veuillez vérifier les réponses.
+Index · HTML
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -99,7 +232,7 @@
     background:var(--panel-2);border:none;color:var(--muted);padding:8px 12px;cursor:pointer;font-size:13px;
   }
   .toggle-group button.active{background:var(--accent);color:#fff;}
-
+ 
   /* Cards */
   .grid{
     display:grid;
@@ -132,7 +265,7 @@
   .badge.watched{background:var(--accent-2);color:#0a2b1c;}
   .badge.unwatched{background:var(--warn);color:#3a2900;}
   .badge.new{background:var(--danger);color:#fff;}
-
+ 
   /* List view */
   table{width:100%;border-collapse:collapse;}
   table th, table td{
@@ -141,7 +274,7 @@
   table th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;}
   table tr:hover{background:var(--panel-2);cursor:pointer;}
   .list-poster{width:36px;height:54px;object-fit:cover;border-radius:4px;vertical-align:middle;}
-
+ 
   /* Dashboard */
   .dash-row{
     display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;
@@ -153,7 +286,7 @@
   .stat-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;min-width:140px;}
   .stat-card .num{font-size:26px;font-weight:800;}
   .stat-card .lbl{font-size:12px;color:var(--muted);margin-top:4px;}
-
+ 
   /* Modal */
   .modal-overlay{
     display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;
@@ -173,7 +306,7 @@
   .search-result .sr-info{flex:1;}
   .search-result .sr-title{font-weight:600;font-size:14px;}
   .search-result .sr-year{font-size:12px;color:var(--muted);}
-
+ 
   .detail-header{display:flex;gap:16px;margin-bottom:16px;}
   .detail-header img{width:120px;border-radius:6px;flex-shrink:0;}
   .detail-header .dh-meta{font-size:13px;color:var(--muted);margin-bottom:6px;}
@@ -191,7 +324,7 @@
   .episode-row .ep-date{color:var(--muted);font-size:12px;width:90px;flex-shrink:0;}
   .episodes-wrap{display:none;}
   .episodes-wrap.open{display:block;}
-
+ 
   label.field{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;}
   .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;}
   .settings-grid input{width:100%;}
@@ -213,7 +346,7 @@
 </style>
 </head>
 <body>
-
+ 
 <header>
   <h1>🎬 Vuthèque</h1>
   <nav id="main-nav">
@@ -225,9 +358,9 @@
     <button class="icon-btn" id="btn-settings">⚙️ Paramètres</button>
   </div>
 </header>
-
+ 
 <main>
-
+ 
   <!-- FILMS -->
   <section class="view active" id="view-films">
     <div class="toolbar">
@@ -245,11 +378,12 @@
     </div>
     <div id="films-container"></div>
   </section>
-
+ 
   <!-- SERIES -->
   <section class="view" id="view-series">
     <div class="toolbar">
       <button class="btn" onclick="openSearchModal('tv')">+ Ajouter une série</button>
+      <button class="btn secondary" id="btn-check-all" onclick="checkAllSeriesUpdates()">🔄 Vérifier toutes les séries</button>
       <select id="series-filter" onchange="renderSeries()">
         <option value="all">Toutes</option>
         <option value="unfinished">Avec épisodes non vus</option>
@@ -263,24 +397,24 @@
     </div>
     <div id="series-container"></div>
   </section>
-
+ 
   <!-- DASHBOARD -->
   <section class="view" id="view-dashboard">
     <div class="stat-cards" id="stat-cards"></div>
     <h3>Épisodes non vus par série</h3>
     <div id="dash-chart"></div>
   </section>
-
+ 
   <!-- SETTINGS -->
   <section class="view" id="view-settings">
     <h2>Paramètres</h2>
-
+ 
     <h3>Clé API TMDB</h3>
     <label class="field">Clé API TMDB (v3)</label>
     <input type="text" id="cfg-tmdb-key" style="width:100%;max-width:420px;" placeholder="Colle ta clé ici">
     <div class="settings-note">Gratuite sur themoviedb.org → Paramètres → API.</div>
-
-    <h3 style="margin-top:24px;">Sauvegarde automatique sur GitHub (dépôt de données séparé)</h3>
+ 
+    <h3 style="margin-top:24px;">Dépôt GitHub de données (séparé du code)</h3>
     <div class="settings-grid" style="max-width:600px;">
       <div>
         <label class="field">Propriétaire du dépôt (owner)</label>
@@ -301,13 +435,19 @@
     </div>
     <label class="field">Token GitHub (fine-grained, accès restreint à ce dépôt)</label>
     <input type="password" id="cfg-gh-token" style="width:100%;max-width:420px;" placeholder="github_pat_...">
-    <div class="settings-note">Le token n'est jamais exporté ni committé : il reste uniquement dans le localStorage de ton navigateur.</div>
-
+    <div class="settings-note">Le token n'est jamais exporté avec tes données (films/séries) : il vit uniquement dans le localStorage de ton navigateur et dans le lien / fichier de config si tu choisis de les générer.</div>
+ 
+    <label style="display:flex;align-items:center;gap:8px;margin-top:16px;font-size:14px;cursor:pointer;">
+      <input type="checkbox" id="cfg-auto-save" style="width:auto;">
+      Sauvegarde automatique sur GitHub après chaque modification
+    </label>
+    <div class="settings-note">Si activé, l'appli committe automatiquement sur GitHub ~4 secondes après ta dernière action (vu/non vu, ajout, etc.), sans que tu aies besoin de cliquer sur "Sauvegarder".</div>
+ 
     <div style="margin-top:20px;">
       <button class="btn" onclick="saveSettings()">Enregistrer les paramètres</button>
     </div>
-
-    <h3 style="margin-top:32px;">Sauvegarde &amp; données</h3>
+ 
+    <h3 style="margin-top:32px;">Sauvegarde &amp; données (films/séries)</h3>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <button class="btn" onclick="ghSave()">☁️ Sauvegarder sur GitHub</button>
       <button class="btn secondary" onclick="ghLoad()">☁️ Charger depuis GitHub</button>
@@ -317,10 +457,23 @@
       <button class="btn danger" onclick="resetAll()">🗑️ Réinitialiser les données locales</button>
     </div>
     <div class="settings-note" id="last-save-note" style="margin-top:10px;"></div>
+ 
+    <h3 style="margin-top:32px;">Sauvegarde &amp; partage des paramètres (clé TMDB, token GitHub...)</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn secondary" onclick="exportConfig()">⬇️ Exporter les paramètres (JSON)</button>
+      <button class="btn secondary" onclick="document.getElementById('import-config-file').click()">⬆️ Importer des paramètres</button>
+      <input type="file" id="import-config-file" accept=".json" style="display:none" onchange="importConfig(this.files[0])">
+      <button class="btn secondary" onclick="generateConfigLink()">🔗 Générer un lien de configuration</button>
+    </div>
+    <div class="settings-note">⚠️ Le fichier de paramètres et le lien contiennent ton token GitHub en clair. Ne les partage jamais publiquement, ne les commit pas dans un dépôt public. Utilise le lien uniquement pour toi-même (ex : le mettre en favori sur un autre appareil).</div>
+    <div id="config-link-box" style="display:none;margin-top:10px;">
+      <input type="text" id="config-link-output" readonly style="width:100%;max-width:600px;" onclick="this.select()">
+      <button class="btn secondary" onclick="copyConfigLink()">Copier le lien</button>
+    </div>
   </section>
-
+ 
 </main>
-
+ 
 <!-- SEARCH MODAL -->
 <div class="modal-overlay" id="search-modal">
   <div class="modal">
@@ -333,7 +486,7 @@
     <div id="search-results" style="margin-top:14px;"></div>
   </div>
 </div>
-
+ 
 <!-- DETAIL MODAL -->
 <div class="modal-overlay" id="detail-modal">
   <div class="modal">
@@ -341,9 +494,9 @@
     <div id="detail-content"></div>
   </div>
 </div>
-
+ 
 <div class="toast" id="toast"></div>
-
+ 
 <script>
 /* =========================================================
    ETAT / STOCKAGE
@@ -354,10 +507,10 @@ let seriesView = 'card';
 let currentSearchType = 'movie';
 let openDetailId = null;
 let openDetailType = null;
-
+ 
 const LS_STATE = 'watchlist_data';
 const LS_CFG = 'watchlist_config';
-
+ 
 function loadLocalState(){
   const raw = localStorage.getItem(LS_STATE);
   if(raw){
@@ -368,6 +521,16 @@ function loadLocalState(){
 }
 function saveLocalState(){
   localStorage.setItem(LS_STATE, JSON.stringify(state));
+  scheduleAutoSave();
+}
+ 
+let autoSaveTimer = null;
+function scheduleAutoSave(){
+  const cfg = getCfg();
+  if(!cfg.auto_save) return;
+  if(!cfg.gh_owner || !cfg.gh_repo || !cfg.gh_token) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(()=>{ ghSave(true); }, 4000);
 }
 function getCfg(){
   const raw = localStorage.getItem(LS_CFG);
@@ -376,7 +539,7 @@ function getCfg(){
 function setCfg(cfg){
   localStorage.setItem(LS_CFG, JSON.stringify(cfg));
 }
-
+ 
 function saveSettings(){
   const cfg = {
     tmdb_key: document.getElementById('cfg-tmdb-key').value.trim(),
@@ -385,6 +548,7 @@ function saveSettings(){
     gh_branch: document.getElementById('cfg-gh-branch').value.trim() || 'main',
     gh_path: document.getElementById('cfg-gh-path').value.trim() || 'data.json',
     gh_token: document.getElementById('cfg-gh-token').value.trim(),
+    auto_save: document.getElementById('cfg-auto-save').checked,
   };
   setCfg(cfg);
   showToast('Paramètres enregistrés', 'success');
@@ -397,8 +561,78 @@ function loadSettingsIntoForm(){
   document.getElementById('cfg-gh-branch').value = cfg.gh_branch || 'main';
   document.getElementById('cfg-gh-path').value = cfg.gh_path || 'data.json';
   document.getElementById('cfg-gh-token').value = cfg.gh_token || '';
+  document.getElementById('cfg-auto-save').checked = !!cfg.auto_save;
 }
-
+ 
+/* ---- Export / import / lien de configuration ---- */
+function exportConfig(){
+  const cfg = getCfg();
+  const blob = new Blob([JSON.stringify(cfg, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'vutheque-config.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Paramètres exportés', 'success');
+}
+function importConfig(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const cfg = JSON.parse(e.target.result);
+      setCfg(cfg);
+      loadSettingsIntoForm();
+      showToast('Paramètres importés', 'success');
+    }catch(err){
+      showToast("Erreur d'import des paramètres : " + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+function cfgToUrlSafeB64(cfg){
+  return utf8_to_b64(JSON.stringify(cfg)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function urlSafeB64ToCfg(str){
+  let b64 = str.replace(/-/g,'+').replace(/_/g,'/');
+  while(b64.length % 4) b64 += '=';
+  return JSON.parse(b64_to_utf8(b64));
+}
+function generateConfigLink(){
+  const cfg = getCfg();
+  const encoded = cfgToUrlSafeB64(cfg);
+  const base = location.origin + location.pathname;
+  const link = base + '#cfg=' + encoded;
+  document.getElementById('config-link-output').value = link;
+  document.getElementById('config-link-box').style.display = 'block';
+  showToast('Lien généré — garde-le privé', 'success');
+}
+function copyConfigLink(){
+  const el = document.getElementById('config-link-output');
+  el.select();
+  navigator.clipboard.writeText(el.value).then(()=>{
+    showToast('Lien copié', 'success');
+  }).catch(()=>{
+    showToast('Copie impossible, sélectionne et copie manuellement', 'error');
+  });
+}
+function loadConfigFromUrlIfPresent(){
+  const hash = location.hash;
+  if(!hash || hash.indexOf('cfg=') === -1) return;
+  try{
+    const encoded = hash.split('cfg=')[1];
+    const cfg = urlSafeB64ToCfg(decodeURIComponent(encoded));
+    setCfg(cfg);
+    showToast('Paramètres chargés depuis le lien', 'success');
+  }catch(err){
+    showToast('Lien de configuration invalide', 'error');
+  }finally{
+    // On retire le hash de l'URL/historique pour ne pas laisser le token visible
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+}
+ 
 /* =========================================================
    NAVIGATION
    ========================================================= */
@@ -417,7 +651,7 @@ document.getElementById('btn-settings').addEventListener('click', ()=>{
   document.getElementById('view-settings').classList.add('active');
   loadSettingsIntoForm();
 });
-
+ 
 function setFilmsView(v){
   filmsView = v;
   document.getElementById('films-view-card').classList.toggle('active', v==='card');
@@ -430,7 +664,7 @@ function setSeriesView(v){
   document.getElementById('series-view-list').classList.toggle('active', v==='list');
   renderSeries();
 }
-
+ 
 /* =========================================================
    TOAST
    ========================================================= */
@@ -442,7 +676,7 @@ function showToast(msg, type=''){
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=> t.classList.remove('show'), 3500);
 }
-
+ 
 /* =========================================================
    RENDU - FILMS
    ========================================================= */
@@ -452,12 +686,12 @@ function renderFilms(){
   if(filter === 'watched') list = list.filter(f=>f.vu);
   if(filter === 'unwatched') list = list.filter(f=>!f.vu);
   const c = document.getElementById('films-container');
-
+ 
   if(list.length === 0){
     c.innerHTML = '<div class="empty-state">Aucun film ici pour le moment. Clique sur "+ Ajouter un film".</div>';
     return;
   }
-
+ 
   if(filmsView === 'card'){
     c.innerHTML = '<div class="grid">' + list.map(f=>`
       <div class="card" onclick="openFilmDetail('${f.id}')">
@@ -483,7 +717,7 @@ function renderFilms(){
     </tbody></table>`;
   }
 }
-
+ 
 function openFilmDetail(id){
   const f = state.films.find(x=>String(x.id)===String(id));
   if(!f) return;
@@ -520,7 +754,7 @@ function deleteFilm(id){
   closeModal('detail-modal');
   renderFilms();
 }
-
+ 
 /* =========================================================
    RENDU - SERIES
    ========================================================= */
@@ -534,19 +768,19 @@ function totalCount(serie){
   (serie.saisons||[]).forEach(s=> n += s.episodes.length);
   return n;
 }
-
+ 
 function renderSeries(){
   const filter = document.getElementById('series-filter').value;
   let list = state.series.slice();
   if(filter === 'unfinished') list = list.filter(s=>unwatchedCount(s) > 0);
   if(filter === 'finished') list = list.filter(s=>unwatchedCount(s) === 0);
   const c = document.getElementById('series-container');
-
+ 
   if(list.length === 0){
     c.innerHTML = '<div class="empty-state">Aucune série ici pour le moment. Clique sur "+ Ajouter une série".</div>';
     return;
   }
-
+ 
   if(seriesView === 'card'){
     c.innerHTML = '<div class="grid">' + list.map(s=>{
       const unw = unwatchedCount(s);
@@ -573,9 +807,12 @@ function renderSeries(){
     </tbody></table>`;
   }
 }
-
+ 
+let openSeasonNumbers = new Set();
+ 
 function openSerieDetail(id){
   openDetailId = id;
+  openSeasonNumbers = new Set();
   renderSerieDetailModal();
   openModal('detail-modal');
 }
@@ -584,13 +821,18 @@ function renderSerieDetailModal(){
   if(!s) return;
   const seasonsHtml = (s.saisons||[]).map(season=>{
     const unw = season.episodes.filter(e=>!e.vu).length;
+    const isOpen = openSeasonNumbers.has(season.numero);
     return `
     <div class="season-block">
-      <div class="season-head" onclick="toggleSeasonBlock(this)">
+      <div class="season-head" onclick="toggleSeasonBlock(this, ${season.numero})">
         <span>Saison ${season.numero} (${season.episodes.length} ép. — ${unw} non vus)</span>
-        <span>▾</span>
+        <span style="display:flex;align-items:center;gap:8px;">
+          <button class="btn secondary" style="padding:4px 8px;font-size:12px;" onclick="event.stopPropagation(); markSeasonWatched('${s.id}', ${season.numero}, true)">Tout marquer vu</button>
+          <button class="btn secondary" style="padding:4px 8px;font-size:12px;" onclick="event.stopPropagation(); markSeasonWatched('${s.id}', ${season.numero}, false)">Tout marquer non vu</button>
+          <span>▾</span>
+        </span>
       </div>
-      <div class="episodes-wrap">
+      <div class="episodes-wrap${isOpen?' open':''}">
         ${season.episodes.map(ep=>`
           <div class="episode-row">
             <input type="checkbox" ${ep.vu?'checked':''} onchange="toggleEpisode('${s.id}', ${season.numero}, ${ep.numero})">
@@ -601,7 +843,7 @@ function renderSerieDetailModal(){
       </div>
     </div>`;
   }).join('');
-
+ 
   document.getElementById('detail-content').innerHTML = `
     <div class="detail-header">
       ${s.affiche_url ? `<img src="${s.affiche_url}">` : ''}
@@ -619,8 +861,10 @@ function renderSerieDetailModal(){
     ${seasonsHtml}
   `;
 }
-function toggleSeasonBlock(headEl){
+function toggleSeasonBlock(headEl, seasonNum){
   headEl.nextElementSibling.classList.toggle('open');
+  if(openSeasonNumbers.has(seasonNum)) openSeasonNumbers.delete(seasonNum);
+  else openSeasonNumbers.add(seasonNum);
 }
 function toggleEpisode(serieId, seasonNum, epNum){
   const s = state.series.find(x=>String(x.id)===String(serieId));
@@ -630,6 +874,8 @@ function toggleEpisode(serieId, seasonNum, epNum){
   ep.vu = !ep.vu;
   ep.nouveau = false;
   saveLocalState();
+  openSeasonNumbers.add(seasonNum);
+  renderSerieDetailModal();
   renderSeries();
 }
 function deleteSerie(id){
@@ -639,7 +885,7 @@ function deleteSerie(id){
   closeModal('detail-modal');
   renderSeries();
 }
-
+ 
 /* =========================================================
    DASHBOARD
    ========================================================= */
@@ -649,19 +895,19 @@ function renderDashboard(){
   const totalSeries = state.series.length;
   let totalEp=0, unwEp=0;
   state.series.forEach(s=>{ totalEp+=totalCount(s); unwEp+=unwatchedCount(s); });
-
+ 
   document.getElementById('stat-cards').innerHTML = `
     <div class="stat-card"><div class="num">${filmsWatched}/${totalFilms}</div><div class="lbl">Films vus</div></div>
     <div class="stat-card"><div class="num">${totalSeries}</div><div class="lbl">Séries suivies</div></div>
     <div class="stat-card"><div class="num">${totalEp - unwEp}/${totalEp}</div><div class="lbl">Épisodes vus</div></div>
     <div class="stat-card"><div class="num">${unwEp}</div><div class="lbl">Épisodes à voir</div></div>
   `;
-
+ 
   const rows = state.series
     .map(s=>({titre:s.titre, id:s.id, unw: unwatchedCount(s)}))
     .filter(r=>r.unw>0)
     .sort((a,b)=>b.unw-a.unw);
-
+ 
   const max = rows.length ? rows[0].unw : 1;
   const chart = document.getElementById('dash-chart');
   if(rows.length===0){
@@ -675,7 +921,7 @@ function renderDashboard(){
     </div>
   `).join('');
 }
-
+ 
 /* =========================================================
    MODALS génériques
    ========================================================= */
@@ -684,12 +930,12 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(ov=>{
   ov.addEventListener('click', (e)=>{ if(e.target === ov) ov.classList.remove('open'); });
 });
-
+ 
 /* =========================================================
    TMDB - RECHERCHE ET AJOUT
    ========================================================= */
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
-
+ 
 function openSearchModal(type){
   currentSearchType = type;
   document.getElementById('search-modal-title').textContent = type==='movie' ? 'Rechercher un film' : 'Rechercher une série';
@@ -701,7 +947,7 @@ function openSearchModal(type){
 document.getElementById('search-input').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter') doSearch();
 });
-
+ 
 async function doSearch(){
   const cfg = getCfg();
   if(!cfg.tmdb_key){
@@ -741,7 +987,7 @@ async function doSearch(){
     resultsEl.innerHTML = '<div class="empty-state">Erreur : '+escapeHtml(err.message)+'</div>';
   }
 }
-
+ 
 async function addFromTmdb(tmdbId){
   const cfg = getCfg();
   showToast('Récupération des informations...', '');
@@ -821,43 +1067,51 @@ async function addFromTmdb(tmdbId){
     showToast("Erreur lors de l'ajout : " + err.message, 'error');
   }
 }
-
+ 
+// Coeur de la vérification pour UNE série. Ne fait ni toast ni rendu : c'est à l'appelant de le faire.
+// Retourne le nombre de nouveaux épisodes trouvés.
+async function fetchSeriesUpdates(s, cfg){
+  const url = `https://api.themoviedb.org/3/tv/${s.tmdb_id}?api_key=${cfg.tmdb_key}&language=fr-FR`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Erreur TMDB (' + res.status + ') pour "' + s.titre + '"');
+  const d = await res.json();
+  let newCount = 0;
+  for(const season of (d.seasons||[])){
+    if(season.season_number === 0) continue;
+    let localSeason = s.saisons.find(sx=>sx.numero===season.season_number);
+    const seasonUrl = `https://api.themoviedb.org/3/tv/${s.tmdb_id}/season/${season.season_number}?api_key=${cfg.tmdb_key}&language=fr-FR`;
+    const sres = await fetch(seasonUrl);
+    const sd = await sres.json();
+    if(!localSeason){
+      localSeason = { numero: season.season_number, episodes: [] };
+      s.saisons.push(localSeason);
+    }
+    (sd.episodes||[]).forEach(ep=>{
+      const exists = localSeason.episodes.find(e=>e.numero===ep.episode_number);
+      if(!exists){
+        localSeason.episodes.push({
+          numero: ep.episode_number,
+          titre: ep.name,
+          date_diffusion: ep.air_date,
+          vu: false,
+          nouveau: true
+        });
+        newCount++;
+      }
+    });
+    localSeason.episodes.sort((a,b)=>a.numero-b.numero);
+  }
+  s.saisons.sort((a,b)=>a.numero-b.numero);
+  return newCount;
+}
+ 
 async function checkSeriesUpdates(serieId){
   const cfg = getCfg();
   const s = state.series.find(x=>String(x.id)===String(serieId));
   if(!s) return;
   showToast('Vérification des nouveautés...', '');
   try{
-    const url = `https://api.themoviedb.org/3/tv/${s.tmdb_id}?api_key=${cfg.tmdb_key}&language=fr-FR`;
-    const res = await fetch(url);
-    const d = await res.json();
-    let newCount = 0;
-    for(const season of (d.seasons||[])){
-      if(season.season_number === 0) continue;
-      let localSeason = s.saisons.find(sx=>sx.numero===season.season_number);
-      const seasonUrl = `https://api.themoviedb.org/3/tv/${s.tmdb_id}/season/${season.season_number}?api_key=${cfg.tmdb_key}&language=fr-FR`;
-      const sres = await fetch(seasonUrl);
-      const sd = await sres.json();
-      if(!localSeason){
-        localSeason = { numero: season.season_number, episodes: [] };
-        s.saisons.push(localSeason);
-      }
-      (sd.episodes||[]).forEach(ep=>{
-        const exists = localSeason.episodes.find(e=>e.numero===ep.episode_number);
-        if(!exists){
-          localSeason.episodes.push({
-            numero: ep.episode_number,
-            titre: ep.name,
-            date_diffusion: ep.air_date,
-            vu: false,
-            nouveau: true
-          });
-          newCount++;
-        }
-      });
-      localSeason.episodes.sort((a,b)=>a.numero-b.numero);
-    }
-    s.saisons.sort((a,b)=>a.numero-b.numero);
+    const newCount = await fetchSeriesUpdates(s, cfg);
     saveLocalState();
     renderSerieDetailModal();
     renderSeries();
@@ -866,7 +1120,49 @@ async function checkSeriesUpdates(serieId){
     showToast('Erreur : ' + err.message, 'error');
   }
 }
-
+ 
+async function checkAllSeriesUpdates(){
+  const cfg = getCfg();
+  if(!cfg.tmdb_key){
+    showToast('Configure ta clé API TMDB dans les Paramètres', 'error');
+    return;
+  }
+  if(state.series.length === 0){
+    showToast('Aucune série à vérifier', '');
+    return;
+  }
+  const btn = document.getElementById('btn-check-all');
+  if(btn){ btn.disabled = true; btn.textContent = '🔄 Vérification en cours...'; }
+  let totalNew = 0;
+  let errors = 0;
+  for(const s of state.series){
+    try{
+      totalNew += await fetchSeriesUpdates(s, cfg);
+    }catch(err){
+      errors++;
+    }
+  }
+  saveLocalState();
+  renderSeries();
+  if(openDetailId) renderSerieDetailModal();
+  if(btn){ btn.disabled = false; btn.textContent = '🔄 Vérifier toutes les séries'; }
+  let msg = totalNew>0 ? `${totalNew} nouvel(aux) épisode(s) au total` : 'Aucun nouvel épisode';
+  if(errors>0) msg += ` (${errors} série(s) en erreur)`;
+  showToast(msg, totalNew>0?'success':(errors>0?'error':''));
+}
+ 
+function markSeasonWatched(serieId, seasonNum, watched){
+  const s = state.series.find(x=>String(x.id)===String(serieId));
+  if(!s) return;
+  const season = s.saisons.find(sx=>sx.numero===seasonNum);
+  if(!season) return;
+  season.episodes.forEach(e=>{ e.vu = watched; if(watched) e.nouveau = false; });
+  saveLocalState();
+  openSeasonNumbers.add(seasonNum);
+  renderSerieDetailModal();
+  renderSeries();
+}
+ 
 /* =========================================================
    EXPORT / IMPORT / GITHUB
    ========================================================= */
@@ -906,24 +1202,24 @@ function resetAll(){
   renderSeries();
   showToast('Données réinitialisées', 'success');
 }
-
+ 
 function utf8_to_b64(str){
   return btoa(unescape(encodeURIComponent(str)));
 }
 function b64_to_utf8(str){
   return decodeURIComponent(escape(atob(str)));
 }
-
-async function ghSave(){
+ 
+async function ghSave(silent){
   const cfg = getCfg();
   if(!cfg.gh_owner || !cfg.gh_repo || !cfg.gh_token){
-    showToast("Configure d'abord GitHub dans les Paramètres", 'error');
+    if(!silent) showToast("Configure d'abord GitHub dans les Paramètres", 'error');
     return;
   }
   const path = cfg.gh_path || 'data.json';
   const branch = cfg.gh_branch || 'main';
   const apiUrl = `https://api.github.com/repos/${cfg.gh_owner}/${cfg.gh_repo}/contents/${path}`;
-  showToast('Sauvegarde sur GitHub...', '');
+  if(!silent) showToast('Sauvegarde sur GitHub...', '');
   try{
     let sha = null;
     const getRes = await fetch(apiUrl + '?ref=' + branch, {
@@ -950,13 +1246,13 @@ async function ghSave(){
       const errData = await putRes.json().catch(()=>({}));
       throw new Error(errData.message || ('Erreur ' + putRes.status));
     }
-    document.getElementById('last-save-note').textContent = 'Dernière sauvegarde GitHub : ' + new Date().toLocaleString();
-    showToast('Sauvegardé sur GitHub ✅', 'success');
+    document.getElementById('last-save-note').textContent = 'Dernière sauvegarde GitHub : ' + new Date().toLocaleString() + (silent ? ' (auto)' : '');
+    showToast(silent ? 'Sauvegarde automatique effectuée ✅' : 'Sauvegardé sur GitHub ✅', 'success');
   }catch(err){
-    showToast('Erreur GitHub : ' + err.message, 'error');
+    showToast('Erreur GitHub' + (silent ? ' (auto)' : '') + ' : ' + err.message, 'error');
   }
 }
-
+ 
 async function ghLoad(){
   const cfg = getCfg();
   if(!cfg.gh_owner || !cfg.gh_repo || !cfg.gh_token){
@@ -985,7 +1281,7 @@ async function ghLoad(){
     showToast('Erreur GitHub : ' + err.message, 'error');
   }
 }
-
+ 
 /* =========================================================
    UTILS
    ========================================================= */
@@ -995,13 +1291,16 @@ function escapeHtml(str){
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
-
+ 
 /* =========================================================
    INIT
    ========================================================= */
+loadConfigFromUrlIfPresent();
 loadLocalState();
 renderFilms();
 renderSeries();
 </script>
 </body>
 </html>
+ 
+
