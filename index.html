@@ -175,7 +175,7 @@
   .search-result .sr-year{font-size:12px;color:var(--muted);}
 
   .detail-header{display:flex;gap:16px;margin-bottom:16px;}
-  .detail-header img{width:120px;border-radius:6px;flex-shrink:0;}
+  .detail-header img{width:140px;height:210px;object-fit:cover;border-radius:6px;flex-shrink:0;background:var(--panel-2);}
   .detail-header .dh-meta{font-size:13px;color:var(--muted);margin-bottom:6px;}
   .detail-header a{color:var(--accent);}
   .season-block{margin-bottom:14px;border:1px solid var(--border);border-radius:6px;}
@@ -276,6 +276,10 @@
   <section class="view" id="view-settings">
     <h2>Paramètres</h2>
 
+    <div class="settings-note" style="margin-bottom:20px;">
+      ⌨️ Raccourcis clavier : <strong>N</strong> nouveau film/série (selon l'onglet actif) · <strong>V</strong> marquer vu/non vu (fiche film ouverte) · <strong>Échap</strong> fermer la fenêtre.
+    </div>
+
     <h3>Clé API TMDB</h3>
     <label class="field">Clé API TMDB (v3)</label>
     <input type="text" id="cfg-tmdb-key" style="width:100%;max-width:420px;" placeholder="Colle ta clé ici">
@@ -351,6 +355,14 @@
       <button class="btn" onclick="doSearch()">Rechercher</button>
     </div>
     <div id="search-results" style="margin-top:14px;"></div>
+
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Tu ne trouves pas le bon résultat ? Colle un lien TMDB :</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="tmdb-link-input" style="flex:1;" placeholder="https://www.themoviedb.org/movie/12345-titre">
+        <button class="btn secondary" onclick="addFromTmdbLink()">Ajouter depuis ce lien</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -588,6 +600,8 @@ function renderFilms(){
 function openFilmDetail(id){
   const f = state.films.find(x=>String(x.id)===String(id));
   if(!f) return;
+  openDetailType = 'film';
+  openDetailId = id;
   const html = `
     <div class="detail-header">
       ${f.affiche_url ? `<img src="${f.affiche_url}">` : ''}
@@ -596,7 +610,7 @@ function openFilmDetail(id){
         <div class="dh-meta">Réalisateur : ${escapeHtml(f.realisateur||'inconnu')}</div>
         <div class="dh-meta">Genres : ${escapeHtml((f.genres||[]).join(', '))}</div>
         <div class="dh-meta">Casting : ${escapeHtml((f.casting||[]).slice(0,6).join(', '))}</div>
-        ${f.imdb_id ? `<div class="dh-meta"><a href="https://www.imdb.com/title/${f.imdb_id}/" target="_blank">Voir sur IMDB ↗</a></div>` : ''}
+        ${f.tmdb_id ? `<div class="dh-meta"><a href="https://www.themoviedb.org/movie/${f.tmdb_id}" target="_blank">Voir sur TMDB ↗</a></div>` : ''}
         <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(f.synopsis||'')}</p>
         <button class="btn ${f.vu?'secondary':''}" onclick="toggleFilmWatched('${f.id}')">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button>
         <button class="btn danger" onclick="deleteFilm('${f.id}')">Supprimer</button>
@@ -678,6 +692,7 @@ function renderSeries(){
 let openSeasonNumbers = new Set();
 
 function openSerieDetail(id){
+  openDetailType = 'serie';
   openDetailId = id;
   openSeasonNumbers = new Set();
   renderSerieDetailModal();
@@ -718,7 +733,7 @@ function renderSerieDetailModal(){
         <h2 style="margin:0 0 6px;">${escapeHtml(s.titre)}</h2>
         <div class="dh-meta">Genres : ${escapeHtml((s.genres||[]).join(', '))}</div>
         <div class="dh-meta">Casting : ${escapeHtml((s.casting||[]).slice(0,6).join(', '))}</div>
-        ${s.imdb_id ? `<div class="dh-meta"><a href="https://www.imdb.com/title/${s.imdb_id}/" target="_blank">Voir sur IMDB ↗</a></div>` : ''}
+        ${s.tmdb_id ? `<div class="dh-meta"><a href="https://www.themoviedb.org/tv/${s.tmdb_id}" target="_blank">Voir sur TMDB ↗</a></div>` : ''}
         <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(s.synopsis||'')}</p>
         <button class="btn" onclick="checkSeriesUpdates('${s.id}')">🔄 Vérifier les nouveaux épisodes</button>
         <button class="btn danger" onclick="deleteSerie('${s.id}')">Supprimer</button>
@@ -799,6 +814,39 @@ document.querySelectorAll('.modal-overlay').forEach(ov=>{
 });
 
 /* =========================================================
+   RACCOURCIS CLAVIER
+   N : nouveau film / série (selon l'onglet actif)
+   V : marquer vu / non vu (fiche film ouverte)
+   Echap : fermer la fenêtre ouverte
+   ========================================================= */
+document.addEventListener('keydown', (e)=>{
+  const tag = (e.target.tagName || '').toLowerCase();
+  const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
+
+  if(e.key === 'Escape'){
+    document.querySelectorAll('.modal-overlay.open').forEach(ov=>ov.classList.remove('open'));
+    return;
+  }
+
+  if(typing) return; // on ne déclenche jamais N/V pendant une saisie
+
+  if(e.key === 'n' || e.key === 'N'){
+    const activeNav = document.querySelector('#main-nav button.active');
+    if(!activeNav) return;
+    if(activeNav.dataset.view === 'films') openSearchModal('movie');
+    else if(activeNav.dataset.view === 'series') openSearchModal('tv');
+  }
+
+  if(e.key === 'v' || e.key === 'V'){
+    const detailOpen = document.getElementById('detail-modal').classList.contains('open');
+    if(!detailOpen || !openDetailId) return;
+    if(openDetailType === 'film'){
+      toggleFilmWatched(openDetailId);
+    }
+  }
+});
+
+/* =========================================================
    TMDB - RECHERCHE ET AJOUT
    ========================================================= */
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
@@ -808,11 +856,15 @@ function openSearchModal(type){
   document.getElementById('search-modal-title').textContent = type==='movie' ? 'Rechercher un film' : 'Rechercher une série';
   document.getElementById('search-input').value = '';
   document.getElementById('search-results').innerHTML = '';
+  document.getElementById('tmdb-link-input').value = '';
   openModal('search-modal');
   document.getElementById('search-input').focus();
 }
 document.getElementById('search-input').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter') doSearch();
+});
+document.getElementById('tmdb-link-input').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') addFromTmdbLink();
 });
 
 async function doSearch(){
@@ -853,6 +905,30 @@ async function doSearch(){
   }catch(err){
     resultsEl.innerHTML = '<div class="empty-state">Erreur : '+escapeHtml(err.message)+'</div>';
   }
+}
+
+function parseTmdbLink(input){
+  // Formats acceptés : https://www.themoviedb.org/movie/12345-titre, /tv/12345-titre, ou juste l'ID
+  const match = input.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
+  if(match) return { type: match[1], id: parseInt(match[2], 10) };
+  if(/^\d+$/.test(input.trim())) return { type: currentSearchType, id: parseInt(input.trim(), 10) };
+  return null;
+}
+async function addFromTmdbLink(){
+  const cfg = getCfg();
+  if(!cfg.tmdb_key){
+    showToast('Configure ta clé API TMDB dans les Paramètres', 'error');
+    return;
+  }
+  const raw = document.getElementById('tmdb-link-input').value.trim();
+  if(!raw) return;
+  const parsed = parseTmdbLink(raw);
+  if(!parsed){
+    showToast('Lien TMDB non reconnu. Format attendu : https://www.themoviedb.org/movie/12345-titre', 'error');
+    return;
+  }
+  currentSearchType = parsed.type;
+  await addFromTmdb(parsed.id);
 }
 
 async function addFromTmdb(tmdbId){
