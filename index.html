@@ -197,6 +197,16 @@
   .settings-grid input{width:100%;}
   .settings-note{font-size:12px;color:var(--muted);margin-top:4px;}
   .empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+  .discover-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+  .discover-card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--panel-2);}
+  .discover-card .info{padding:8px 10px;}
+  .discover-card .title{font-size:13px;font-weight:600;line-height:1.3;margin-bottom:2px;}
+  .discover-card .meta{font-size:12px;color:var(--muted);margin-bottom:8px;}
+  .discover-card button{width:100%;}
+  .note-badge{
+    position:absolute;top:6px;right:6px;background:var(--warn);color:#3a2900;
+    padding:3px 7px;border-radius:20px;font-size:11px;font-weight:700;
+  }
   .toast{
     position:fixed;bottom:20px;right:20px;background:var(--panel-2);border:1px solid var(--border);
     padding:12px 18px;border-radius:var(--radius);z-index:200;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,.4);
@@ -221,6 +231,7 @@
     <button data-view="films" class="active">Films</button>
     <button data-view="series">Séries</button>
     <button data-view="dashboard">Tableau de bord</button>
+    <button data-view="decouvrir">Découvrir</button>
   </nav>
   <div style="display:flex;gap:6px;">
     <button class="icon-btn" id="btn-settings">⚙️ Paramètres</button>
@@ -288,6 +299,23 @@
     <div class="stat-cards" id="stat-cards"></div>
     <h3>Épisodes non vus par série</h3>
     <div id="dash-chart"></div>
+  </section>
+
+  <!-- DECOUVRIR -->
+  <section class="view" id="view-decouvrir">
+    <div class="toolbar">
+      <button class="btn secondary" onclick="loadDiscoverContent(true)">🔄 Actualiser</button>
+      <div class="settings-note" style="margin:0;">Basé sur les notes publiques TMDB · région France</div>
+    </div>
+
+    <h3>🎬 Films au cinéma en ce moment</h3>
+    <div id="discover-now-playing" class="grid"></div>
+
+    <h3 style="margin-top:28px;">📈 Séries tendances du moment</h3>
+    <div id="discover-trending-tv" class="grid"></div>
+
+    <h3 style="margin-top:28px;">🆕 Séries avec des épisodes qui viennent de sortir</h3>
+    <div id="discover-on-air" class="grid"></div>
   </section>
 
   <!-- SETTINGS -->
@@ -405,7 +433,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -550,6 +578,7 @@ document.getElementById('main-nav').addEventListener('click', (e)=>{
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-' + btn.dataset.view).classList.add('active');
   if(btn.dataset.view === 'dashboard') renderDashboard();
+  if(btn.dataset.view === 'decouvrir') loadDiscoverContent(false);
 });
 document.getElementById('btn-settings').addEventListener('click', ()=>{
   document.querySelectorAll('#main-nav button').forEach(b=>b.classList.remove('active'));
@@ -1242,6 +1271,94 @@ async function refreshAllMetadata(){
   let msg = `${updated} fiche(s) mise(s) à jour`;
   if(errors>0) msg += ` (${errors} en erreur)`;
   showToast(msg, errors>0 && updated===0 ? 'error' : 'success');
+}
+
+/* =========================================================
+   DECOUVRIR - recommandations TMDB (sorties, tendances, notes)
+   ========================================================= */
+let discoverLoaded = false;
+let discoverData = { nowPlaying: [], trendingTv: [], onAir: [] };
+
+async function fetchTmdbList(url){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Erreur TMDB (' + res.status + ')');
+  const data = await res.json();
+  let results = data.results || [];
+  let filtered = results.filter(r => (r.vote_count||0) >= 20);
+  if(filtered.length < 4) filtered = results; // évite une section vide si peu de votes
+  filtered.sort((a,b)=> (b.vote_average||0) - (a.vote_average||0));
+  return filtered.slice(0, 12);
+}
+
+function renderDiscoverLoading(){
+  ['discover-now-playing','discover-trending-tv','discover-on-air'].forEach(id=>{
+    document.getElementById(id).innerHTML = '<div class="empty-state">Chargement...</div>';
+  });
+}
+
+async function loadDiscoverContent(force){
+  if(discoverLoaded && !force) return;
+  const cfg = getCfg();
+  if(!cfg.tmdb_key){
+    showToast('Configure ta clé API TMDB dans les Paramètres', 'error');
+    return;
+  }
+  renderDiscoverLoading();
+  try{
+    const [nowPlaying, trendingTv, onAir] = await Promise.all([
+      fetchTmdbList(`https://api.themoviedb.org/3/movie/now_playing?api_key=${cfg.tmdb_key}&language=fr-FR&region=FR&page=1`),
+      fetchTmdbList(`https://api.themoviedb.org/3/trending/tv/week?api_key=${cfg.tmdb_key}&language=fr-FR`),
+      fetchTmdbList(`https://api.themoviedb.org/3/tv/on_the_air?api_key=${cfg.tmdb_key}&language=fr-FR`)
+    ]);
+    discoverData = { nowPlaying, trendingTv, onAir };
+    renderDiscoverSection('discover-now-playing', nowPlaying, 'movie');
+    renderDiscoverSection('discover-trending-tv', trendingTv, 'tv');
+    renderDiscoverSection('discover-on-air', onAir, 'tv');
+    discoverLoaded = true;
+  }catch(err){
+    showToast('Erreur lors du chargement des recommandations : ' + err.message, 'error');
+  }
+}
+
+function renderDiscoverSection(containerId, items, type){
+  const c = document.getElementById(containerId);
+  if(!items || items.length===0){
+    c.innerHTML = '<div class="empty-state">Rien à afficher pour le moment.</div>';
+    return;
+  }
+  c.innerHTML = items.map(r=>{
+    const title = type==='movie' ? r.title : r.name;
+    const dateStr = type==='movie' ? r.release_date : r.first_air_date;
+    const year = dateStr ? dateStr.substring(0,4) : '';
+    const poster = r.poster_path ? TMDB_IMG + r.poster_path : '';
+    const note = r.vote_average ? r.vote_average.toFixed(1) : '?';
+    const alreadyAdded = type==='movie'
+      ? state.films.some(f=>f.tmdb_id===r.id)
+      : state.series.some(s=>s.tmdb_id===r.id);
+    return `
+      <div class="discover-card">
+        <div style="position:relative;">
+          <span class="note-badge">★ ${note}</span>
+          ${poster ? `<img src="${poster}" alt="">` : `<div class="no-poster">${escapeHtml(title)}</div>`}
+        </div>
+        <div class="info">
+          <div class="title">${escapeHtml(title)}</div>
+          <div class="meta">${year}</div>
+          ${alreadyAdded
+            ? `<button class="btn secondary" disabled style="opacity:.6;">Déjà dans ta liste</button>`
+            : `<button class="btn" onclick="quickAddFromDiscover(${r.id}, '${type}')">+ Ajouter</button>`}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function quickAddFromDiscover(tmdbId, type){
+  currentSearchType = type;
+  await addFromTmdb(tmdbId);
+  renderDiscoverSection('discover-now-playing', discoverData.nowPlaying, 'movie');
+  renderDiscoverSection('discover-trending-tv', discoverData.trendingTv, 'tv');
+  renderDiscoverSection('discover-on-air', discoverData.onAir, 'tv');
 }
 
 function markSeasonWatched(serieId, seasonNum, watched){
