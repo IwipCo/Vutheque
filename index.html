@@ -215,7 +215,8 @@
 <body>
 
 <header>
-  <h1>🎬 Vuthèque</h1>
+  <h1>🎬 Vuthèque <span id="app-version" style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;"></span></h1>
+  <button class="btn" id="btn-add-top" onclick="openAddForCurrentTab()">+ Ajouter</button>
   <nav id="main-nav">
     <button data-view="films" class="active">Films</button>
     <button data-view="series">Séries</button>
@@ -237,6 +238,14 @@
         <option value="watched">Vus</option>
         <option value="unwatched">Non vus</option>
       </select>
+      <select id="films-sort" onchange="renderFilms()">
+        <option value="date_ajout_desc">Date d'ajout (récent d'abord)</option>
+        <option value="date_ajout_asc">Date d'ajout (ancien d'abord)</option>
+        <option value="annee_desc">Année (récent d'abord)</option>
+        <option value="annee_asc">Année (ancien d'abord)</option>
+        <option value="titre">Titre (A-Z)</option>
+        <option value="realisateur">Réalisateur (A-Z)</option>
+      </select>
       <div class="spacer"></div>
       <div class="toggle-group">
         <button id="films-view-card" class="active" onclick="setFilmsView('card')">Carte</button>
@@ -252,9 +261,18 @@
       <button class="btn" onclick="openSearchModal('tv')">+ Ajouter une série</button>
       <button class="btn secondary" id="btn-check-all" onclick="checkAllSeriesUpdates()">🔄 Vérifier toutes les séries</button>
       <select id="series-filter" onchange="renderSeries()">
-        <option value="all">Toutes</option>
+        <option value="all">Toutes (suivies)</option>
         <option value="unfinished">Avec épisodes non vus</option>
         <option value="finished">Entièrement vues</option>
+        <option value="stopped">Arrêtées</option>
+      </select>
+      <select id="series-sort" onchange="renderSeries()">
+        <option value="date_ajout_desc">Date d'ajout (récent d'abord)</option>
+        <option value="date_ajout_asc">Date d'ajout (ancien d'abord)</option>
+        <option value="annee_desc">Année (récent d'abord)</option>
+        <option value="annee_asc">Année (ancien d'abord)</option>
+        <option value="titre">Titre (A-Z)</option>
+        <option value="realisateur">Créateur (A-Z)</option>
       </select>
       <div class="spacer"></div>
       <div class="toggle-group">
@@ -279,6 +297,7 @@
     <div class="settings-note" style="margin-bottom:20px;">
       ⌨️ Raccourcis clavier : <strong>N</strong> nouveau film/série (selon l'onglet actif) · <strong>V</strong> marquer vu/non vu (fiche film ouverte) · <strong>Échap</strong> fermer la fenêtre.
     </div>
+    <div class="settings-note" style="margin-bottom:20px;">Version de l'application : <strong id="app-version-settings"></strong></div>
 
     <h3>Clé API TMDB</h3>
     <label class="field">Clé API TMDB (v3)</label>
@@ -380,6 +399,8 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
+const APP_VERSION = '1.4.0';
+
 let state = { films: [], series: [] };
 let filmsView = 'card';
 let seriesView = 'card';
@@ -559,11 +580,35 @@ function showToast(msg, type=''){
 /* =========================================================
    RENDU - FILMS
    ========================================================= */
+function sortList(list, sortValue, kind){
+  const list2 = list.slice();
+  const getYear = (x)=> parseInt(x.annee) || 0;
+  const getPerson = (x)=> (kind === 'serie' ? (x.createur || '') : (x.realisateur || ''));
+  switch(sortValue){
+    case 'date_ajout_asc':
+      list2.sort((a,b)=>(a.date_ajout||'').localeCompare(b.date_ajout||'')); break;
+    case 'annee_desc':
+      list2.sort((a,b)=>getYear(b)-getYear(a)); break;
+    case 'annee_asc':
+      list2.sort((a,b)=>getYear(a)-getYear(b)); break;
+    case 'titre':
+      list2.sort((a,b)=>(a.titre||'').localeCompare(b.titre||'', 'fr', {sensitivity:'base'})); break;
+    case 'realisateur':
+      list2.sort((a,b)=>getPerson(a).localeCompare(getPerson(b), 'fr', {sensitivity:'base'})); break;
+    case 'date_ajout_desc':
+    default:
+      list2.sort((a,b)=>(b.date_ajout||'').localeCompare(a.date_ajout||'')); break;
+  }
+  return list2;
+}
+
 function renderFilms(){
   const filter = document.getElementById('films-filter').value;
+  const sortValue = document.getElementById('films-sort').value;
   let list = state.films.slice();
   if(filter === 'watched') list = list.filter(f=>f.vu);
   if(filter === 'unwatched') list = list.filter(f=>!f.vu);
+  list = sortList(list, sortValue, 'film');
   const c = document.getElementById('films-container');
 
   if(list.length === 0){
@@ -652,9 +697,16 @@ function totalCount(serie){
 
 function renderSeries(){
   const filter = document.getElementById('series-filter').value;
+  const sortValue = document.getElementById('series-sort').value;
   let list = state.series.slice();
-  if(filter === 'unfinished') list = list.filter(s=>unwatchedCount(s) > 0);
-  if(filter === 'finished') list = list.filter(s=>unwatchedCount(s) === 0);
+  if(filter === 'stopped'){
+    list = list.filter(s=>s.suivie === false);
+  } else {
+    list = list.filter(s=>s.suivie !== false); // par défaut, on masque les séries arrêtées
+    if(filter === 'unfinished') list = list.filter(s=>unwatchedCount(s) > 0);
+    if(filter === 'finished') list = list.filter(s=>unwatchedCount(s) === 0);
+  }
+  list = sortList(list, sortValue, 'serie');
   const c = document.getElementById('series-container');
 
   if(list.length === 0){
@@ -665,9 +717,12 @@ function renderSeries(){
   if(seriesView === 'card'){
     c.innerHTML = '<div class="grid">' + list.map(s=>{
       const unw = unwatchedCount(s);
+      const stopped = s.suivie === false;
+      const badgeClass = stopped ? 'unwatched' : (unw>0?'unwatched':'watched');
+      const badgeText = stopped ? '⏸ Arrêtée' : (unw>0? unw+' à voir' : 'À jour');
       return `
       <div class="card" onclick="openSerieDetail('${s.id}')">
-        <span class="badge ${unw>0?'unwatched':'watched'}">${unw>0? unw+' à voir' : 'À jour'}</span>
+        <span class="badge ${badgeClass}">${badgeText}</span>
         ${s.affiche_url ? `<img src="${s.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(s.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(s.titre)}</div>
@@ -676,13 +731,14 @@ function renderSeries(){
       </div>`;
     }).join('') + '</div>';
   } else {
-    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Épisodes</th><th>Non vus</th></tr></thead><tbody>
+    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Épisodes</th><th>Non vus</th><th>Statut</th></tr></thead><tbody>
       ${list.map(s=>`
         <tr onclick="openSerieDetail('${s.id}')">
           <td>${s.affiche_url ? `<img class="list-poster" src="${s.affiche_url}">` : ''}</td>
           <td>${escapeHtml(s.titre)}</td>
           <td>${totalCount(s)}</td>
           <td>${unwatchedCount(s)}</td>
+          <td>${s.suivie === false ? '⏸ Arrêtée' : '✅ Suivie'}</td>
         </tr>
       `).join('')}
     </tbody></table>`;
@@ -736,6 +792,7 @@ function renderSerieDetailModal(){
         ${s.tmdb_id ? `<div class="dh-meta"><a href="https://www.themoviedb.org/tv/${s.tmdb_id}" target="_blank">Voir sur TMDB ↗</a></div>` : ''}
         <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(s.synopsis||'')}</p>
         <button class="btn" onclick="checkSeriesUpdates('${s.id}')">🔄 Vérifier les nouveaux épisodes</button>
+        <button class="btn secondary" onclick="toggleSerieTracking('${s.id}')">${s.suivie === false ? '▶️ Reprendre le suivi' : '⏸ Arrêter de suivre'}</button>
         <button class="btn danger" onclick="deleteSerie('${s.id}')">Supprimer</button>
       </div>
     </div>
@@ -766,6 +823,15 @@ function deleteSerie(id){
   saveLocalState();
   closeModal('detail-modal');
   renderSeries();
+}
+function toggleSerieTracking(id){
+  const s = state.series.find(x=>String(x.id)===String(id));
+  if(!s) return;
+  s.suivie = (s.suivie === false) ? true : false;
+  saveLocalState();
+  renderSerieDetailModal();
+  renderSeries();
+  showToast(s.suivie === false ? "Suivi arrêté — la série n'apparaîtra plus dans la liste principale" : 'Suivi repris', 'success');
 }
 
 /* =========================================================
@@ -812,6 +878,12 @@ function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.modal-overlay').forEach(ov=>{
   ov.addEventListener('click', (e)=>{ if(e.target === ov) ov.classList.remove('open'); });
 });
+function openAddForCurrentTab(){
+  const activeNav = document.querySelector('#main-nav button.active');
+  const view = activeNav ? activeNav.dataset.view : 'films';
+  if(view === 'series') openSearchModal('tv');
+  else openSearchModal('movie'); // par défaut (films, dashboard, ou paramètres) on propose d'ajouter un film
+}
 
 /* =========================================================
    RACCOURCIS CLAVIER
@@ -833,14 +905,15 @@ document.addEventListener('keydown', (e)=>{
   if(e.key === 'n' || e.key === 'N'){
     const activeNav = document.querySelector('#main-nav button.active');
     if(!activeNav) return;
-    if(activeNav.dataset.view === 'films') openSearchModal('movie');
-    else if(activeNav.dataset.view === 'series') openSearchModal('tv');
+    e.preventDefault();
+    openAddForCurrentTab();
   }
 
   if(e.key === 'v' || e.key === 'V'){
     const detailOpen = document.getElementById('detail-modal').classList.contains('open');
     if(!detailOpen || !openDetailId) return;
     if(openDetailType === 'film'){
+      e.preventDefault();
       toggleFilmWatched(openDetailId);
     }
   }
@@ -993,11 +1066,14 @@ async function addFromTmdb(tmdbId){
         tmdb_id: d.id,
         imdb_id: d.external_ids?.imdb_id || null,
         titre: d.name,
+        annee: d.first_air_date ? d.first_air_date.substring(0,4) : null,
+        createur: (d.created_by||[]).map(c=>c.name).join(', '),
         affiche_url: d.poster_path ? TMDB_IMG + d.poster_path : '',
         synopsis: d.overview || '',
         genres: (d.genres||[]).map(g=>g.name),
         casting: (d.credits?.cast||[]).slice(0,10).map(c=>c.name),
         date_ajout: new Date().toISOString(),
+        suivie: true,
         saisons
       };
       state.series.push(serie);
@@ -1238,6 +1314,8 @@ function escapeHtml(str){
 /* =========================================================
    INIT
    ========================================================= */
+document.getElementById('app-version').textContent = 'v' + APP_VERSION;
+document.getElementById('app-version-settings').textContent = 'v' + APP_VERSION;
 loadConfigFromUrlIfPresent();
 loadLocalState();
 renderFilms();
