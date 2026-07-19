@@ -348,6 +348,12 @@
     </div>
     <div class="settings-note" id="last-save-note" style="margin-top:10px;"></div>
 
+    <h3 style="margin-top:32px;">Maintenance</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn secondary" id="btn-refresh-metadata" onclick="refreshAllMetadata()">🔄 Rafraîchir les métadonnées (films &amp; séries)</button>
+    </div>
+    <div class="settings-note">Recontacte TMDB pour chaque film et série déjà ajoutés, et met à jour affiche, synopsis, genres, casting, année, réalisateur/créateur et lien TMDB. Ne touche ni à ton statut vu/non vu, ni à la liste des épisodes (utilise plutôt "Vérifier toutes les séries" pour ça).</div>
+
     <h3 style="margin-top:32px;">Sauvegarde &amp; partage des paramètres (clé TMDB, token GitHub...)</h3>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <button class="btn secondary" onclick="exportConfig()">⬇️ Exporter les paramètres (JSON)</button>
@@ -399,7 +405,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1168,6 +1174,74 @@ async function checkAllSeriesUpdates(){
   let msg = totalNew>0 ? `${totalNew} nouvel(aux) épisode(s) au total` : 'Aucun nouvel épisode';
   if(errors>0) msg += ` (${errors} série(s) en erreur)`;
   showToast(msg, totalNew>0?'success':(errors>0?'error':''));
+}
+
+async function refreshAllMetadata(){
+  const cfg = getCfg();
+  if(!cfg.tmdb_key){
+    showToast('Configure ta clé API TMDB dans les Paramètres', 'error');
+    return;
+  }
+  const total = state.films.length + state.series.length;
+  if(total === 0){
+    showToast('Aucune fiche à rafraîchir', '');
+    return;
+  }
+  const btn = document.getElementById('btn-refresh-metadata');
+  if(btn){ btn.disabled = true; btn.textContent = '🔄 Rafraîchissement en cours...'; }
+  let updated = 0, errors = 0;
+
+  for(const f of state.films){
+    try{
+      const url = `https://api.themoviedb.org/3/movie/${f.tmdb_id}?api_key=${cfg.tmdb_key}&language=fr-FR&append_to_response=credits,external_ids`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('Erreur ' + res.status);
+      const d = await res.json();
+      const director = (d.credits?.crew||[]).find(c=>c.job==='Director');
+      f.titre = d.title || f.titre;
+      f.annee = d.release_date ? d.release_date.substring(0,4) : f.annee;
+      f.realisateur = director ? director.name : f.realisateur;
+      f.affiche_url = d.poster_path ? TMDB_IMG + d.poster_path : f.affiche_url;
+      f.synopsis = d.overview || f.synopsis;
+      f.genres = (d.genres||[]).map(g=>g.name);
+      f.casting = (d.credits?.cast||[]).slice(0,10).map(c=>c.name);
+      f.imdb_id = d.external_ids?.imdb_id || f.imdb_id;
+      updated++;
+    }catch(err){
+      errors++;
+    }
+  }
+
+  for(const s of state.series){
+    try{
+      const url = `https://api.themoviedb.org/3/tv/${s.tmdb_id}?api_key=${cfg.tmdb_key}&language=fr-FR&append_to_response=credits,external_ids`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('Erreur ' + res.status);
+      const d = await res.json();
+      s.titre = d.name || s.titre;
+      s.annee = d.first_air_date ? d.first_air_date.substring(0,4) : s.annee;
+      const createur = (d.created_by||[]).map(c=>c.name).join(', ');
+      if(createur) s.createur = createur;
+      s.affiche_url = d.poster_path ? TMDB_IMG + d.poster_path : s.affiche_url;
+      s.synopsis = d.overview || s.synopsis;
+      s.genres = (d.genres||[]).map(g=>g.name);
+      s.casting = (d.credits?.cast||[]).slice(0,10).map(c=>c.name);
+      s.imdb_id = d.external_ids?.imdb_id || s.imdb_id;
+      if(s.suivie === undefined) s.suivie = true;
+      updated++;
+    }catch(err){
+      errors++;
+    }
+  }
+
+  saveLocalState();
+  renderFilms();
+  renderSeries();
+  if(openDetailId) renderSerieDetailModal();
+  if(btn){ btn.disabled = false; btn.textContent = '🔄 Rafraîchir les métadonnées (films & séries)'; }
+  let msg = `${updated} fiche(s) mise(s) à jour`;
+  if(errors>0) msg += ` (${errors} en erreur)`;
+  showToast(msg, errors>0 && updated===0 ? 'error' : 'success');
 }
 
 function markSeasonWatched(serieId, seasonNum, watched){
