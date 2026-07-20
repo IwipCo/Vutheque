@@ -248,7 +248,7 @@
       <select id="films-filter" onchange="renderFilms()">
         <option value="all">Tous</option>
         <option value="watched">Vus</option>
-        <option value="unwatched">Non vus</option>
+        <option value="unwatched" selected>Non vus</option>
       </select>
       <select id="films-sort" onchange="renderFilms()">
         <option value="date_ajout_desc">Date d'ajout (récent d'abord)</option>
@@ -274,7 +274,7 @@
       <button class="btn secondary" id="btn-check-all" onclick="checkAllSeriesUpdates()">🔄 Vérifier toutes les séries</button>
       <select id="series-filter" onchange="renderSeries()">
         <option value="all">Toutes (suivies)</option>
-        <option value="unfinished">Avec épisodes non vus</option>
+        <option value="unfinished" selected>Avec épisodes non vus</option>
         <option value="finished">Entièrement vues</option>
         <option value="stopped">Arrêtées</option>
       </select>
@@ -290,6 +290,7 @@
       <div class="toggle-group">
         <button id="series-view-card" class="active" onclick="setSeriesView('card')">Carte</button>
         <button id="series-view-list" onclick="setSeriesView('list')">Liste</button>
+        <button id="series-view-episodes" onclick="setSeriesView('episodes')">Épisodes</button>
       </div>
     </div>
     <div id="series-container"></div>
@@ -442,7 +443,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '1.7.1';
+const APP_VERSION = '0.8';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -608,6 +609,7 @@ function setSeriesView(v){
   seriesView = v;
   document.getElementById('series-view-card').classList.toggle('active', v==='card');
   document.getElementById('series-view-list').classList.toggle('active', v==='list');
+  document.getElementById('series-view-episodes').classList.toggle('active', v==='episodes');
   renderSeries();
 }
 
@@ -670,11 +672,12 @@ function renderFilms(){
         <div class="info">
           <div class="title">${escapeHtml(f.titre)}</div>
           <div class="year">${f.annee || ''}</div>
+          <button class="btn ${f.vu?'secondary':''}" style="width:100%;margin-top:6px;padding:5px 0;font-size:12px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button>
         </div>
       </div>
     `).join('') + '</div>';
   } else {
-    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Année</th><th>Réalisateur</th><th>Statut</th></tr></thead><tbody>
+    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Année</th><th>Réalisateur</th><th>Statut</th><th></th></tr></thead><tbody>
       ${list.map(f=>`
         <tr onclick="openFilmDetail('${f.id}')">
           <td>${f.affiche_url ? `<img class="list-poster" src="${f.affiche_url}">` : ''}</td>
@@ -682,6 +685,7 @@ function renderFilms(){
           <td>${f.annee||''}</td>
           <td>${escapeHtml(f.realisateur||'')}</td>
           <td>${f.vu ? '✅ Vu' : '⬜ Non vu'}</td>
+          <td><button class="btn ${f.vu?'secondary':''}" style="font-size:12px;padding:5px 10px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button></td>
         </tr>
       `).join('')}
     </tbody></table>`;
@@ -711,13 +715,13 @@ function openFilmDetail(id){
   document.getElementById('detail-content').innerHTML = html;
   openModal('detail-modal');
 }
-function toggleFilmWatched(id){
+function toggleFilmWatched(id, skipDetailOpen){
   const f = state.films.find(x=>String(x.id)===String(id));
   if(!f) return;
   f.vu = !f.vu;
   saveLocalState();
   renderFilms();
-  openFilmDetail(id);
+  if(!skipDetailOpen) openFilmDetail(id);
 }
 function deleteFilm(id){
   if(!confirm('Supprimer ce film ?')) return;
@@ -740,6 +744,16 @@ function totalCount(serie){
   (serie.saisons||[]).forEach(s=> n += s.episodes.length);
   return n;
 }
+function getFirstUnwatchedEpisode(serie){
+  const saisons = (serie.saisons||[]).slice().sort((a,b)=>a.numero-b.numero);
+  for(const saison of saisons){
+    const episodes = saison.episodes.slice().sort((a,b)=>a.numero-b.numero);
+    for(const ep of episodes){
+      if(!ep.vu) return { saison: saison.numero, episode: ep };
+    }
+  }
+  return null;
+}
 
 function renderSeries(){
   const filter = document.getElementById('series-filter').value;
@@ -754,6 +768,27 @@ function renderSeries(){
   }
   list = sortList(list, sortValue, 'serie');
   const c = document.getElementById('series-container');
+
+  if(seriesView === 'episodes'){
+    const rows = list
+      .map(s=>({ s, next: getFirstUnwatchedEpisode(s) }))
+      .filter(r=>r.next !== null);
+    if(rows.length === 0){
+      c.innerHTML = '<div class="empty-state">Aucun épisode en attente. Tout est à jour 🎉</div>';
+      return;
+    }
+    c.innerHTML = rows.map(({s, next})=>`
+      <div class="episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;padding:12px 14px;">
+        ${s.affiche_url ? `<img class="list-poster" src="${s.affiche_url}">` : ''}
+        <span class="ep-title" style="cursor:pointer;" onclick="openSerieDetail('${s.id}')">
+          <strong>${escapeHtml(s.titre)}</strong> — S${next.saison} E${next.episode.numero} · ${escapeHtml(next.episode.titre||'')}
+        </span>
+        <span class="ep-date">${next.episode.date_diffusion||''}</span>
+        <button class="btn" onclick="markEpisodeWatchedQuick('${s.id}', ${next.saison}, ${next.episode.numero})">✓ Vu</button>
+      </div>
+    `).join('');
+    return;
+  }
 
   if(list.length === 0){
     c.innerHTML = '<div class="empty-state">Aucune série ici pour le moment. Clique sur "+ Ajouter une série".</div>';
@@ -862,6 +897,17 @@ function toggleEpisode(serieId, seasonNum, epNum){
   openSeasonNumbers.add(seasonNum);
   renderSerieDetailModal();
   renderSeries();
+}
+function markEpisodeWatchedQuick(serieId, seasonNum, epNum){
+  const s = state.series.find(x=>String(x.id)===String(serieId));
+  if(!s) return;
+  const season = s.saisons.find(sx=>sx.numero===seasonNum);
+  const ep = season?.episodes.find(e=>e.numero===epNum);
+  if(!ep) return;
+  ep.vu = true;
+  ep.nouveau = false;
+  saveLocalState();
+  renderSeries(); // le prochain épisode non vu prend automatiquement sa place
 }
 function deleteSerie(id){
   if(!confirm('Supprimer cette série ?')) return;
