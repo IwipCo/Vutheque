@@ -443,7 +443,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.8';
+const APP_VERSION = '0.9';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1393,7 +1393,7 @@ function renderDiscoverSection(containerId, items, type){
       ? state.films.some(f=>f.tmdb_id===r.id)
       : state.series.some(s=>s.tmdb_id===r.id);
     return `
-      <div class="discover-card">
+      <div class="discover-card" style="cursor:pointer;" onclick="openDiscoverDetail(${r.id}, '${type}')">
         <div style="position:relative;">
           <span class="note-badge">★ ${note}</span>
           ${poster ? `<img src="${poster}" alt="">` : `<div class="no-poster">${escapeHtml(title)}</div>`}
@@ -1403,7 +1403,7 @@ function renderDiscoverSection(containerId, items, type){
           <div class="meta">${year}</div>
           ${alreadyAdded
             ? `<button class="btn secondary" disabled style="opacity:.6;">Déjà dans ta liste</button>`
-            : `<button class="btn" onclick="quickAddFromDiscover(${r.id}, '${type}')">+ Ajouter</button>`}
+            : `<button class="btn" onclick="event.stopPropagation(); quickAddFromDiscover(${r.id}, '${type}')">+ Ajouter</button>`}
         </div>
       </div>
     `;
@@ -1416,6 +1416,44 @@ async function quickAddFromDiscover(tmdbId, type){
   renderDiscoverSection('discover-now-playing', discoverData.nowPlaying, 'movie');
   renderDiscoverSection('discover-trending-tv', discoverData.trendingTv, 'tv');
   renderDiscoverSection('discover-on-air', discoverData.onAir, 'tv');
+}
+
+function findDiscoverItem(tmdbId, type){
+  const pools = type === 'movie' ? [discoverData.nowPlaying] : [discoverData.trendingTv, discoverData.onAir];
+  for(const pool of pools){
+    const found = (pool||[]).find(x => x.id === tmdbId);
+    if(found) return found;
+  }
+  return null;
+}
+
+function openDiscoverDetail(tmdbId, type){
+  const r = findDiscoverItem(tmdbId, type);
+  if(!r) return;
+  const title = type === 'movie' ? r.title : r.name;
+  const dateStr = type === 'movie' ? r.release_date : r.first_air_date;
+  const year = dateStr ? dateStr.substring(0,4) : '';
+  const poster = r.poster_path ? TMDB_IMG + r.poster_path : '';
+  const note = r.vote_average ? r.vote_average.toFixed(1) : '?';
+  const alreadyAdded = type === 'movie'
+    ? state.films.some(f=>f.tmdb_id===r.id)
+    : state.series.some(s=>s.tmdb_id===r.id);
+  const tmdbUrl = `https://www.themoviedb.org/${type}/${r.id}`;
+
+  document.getElementById('detail-content').innerHTML = `
+    <div class="detail-header">
+      ${poster ? `<img src="${poster}">` : ''}
+      <div>
+        <h2 style="margin:0 0 6px;">${escapeHtml(title)} ${year ? `(${year})` : ''}</h2>
+        <div class="dh-meta">★ ${note} · <a href="${tmdbUrl}" target="_blank">Voir sur TMDB ↗</a></div>
+        <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(r.overview || 'Pas de résumé disponible.')}</p>
+        ${alreadyAdded
+          ? `<button class="btn secondary" disabled style="opacity:.6;">Déjà dans ta liste</button>`
+          : `<button class="btn" onclick="quickAddFromDiscover(${r.id}, '${type}'); closeModal('detail-modal');">+ Ajouter</button>`}
+      </div>
+    </div>
+  `;
+  openModal('detail-modal');
 }
 
 function parseRssItems(xmlText){
