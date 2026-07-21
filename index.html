@@ -166,7 +166,7 @@
     max-width:700px;width:100%;padding:22px;max-height:85vh;overflow-y:auto;
   }
   .modal h2{margin-top:0;}
-  .modal .close-x{float:right;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
+  .close-x{float:right;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
   .search-result{
     display:flex;gap:12px;padding:10px;border-bottom:1px solid var(--border);align-items:center;
   }
@@ -208,6 +208,28 @@
     position:absolute;top:6px;right:6px;background:var(--warn);color:#3a2900;
     padding:3px 7px;border-radius:20px;font-size:11px;font-weight:700;
   }
+  .flip-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,0);z-index:149;
+    transition:background .4s ease;
+  }
+  .flip-backdrop.show{background:rgba(0,0,0,.6);}
+  .flip-card{
+    position:fixed;z-index:150;perspective:1600px;
+    transition:top .45s cubic-bezier(.4,0,.2,1), left .45s cubic-bezier(.4,0,.2,1),
+               width .45s cubic-bezier(.4,0,.2,1), height .45s cubic-bezier(.4,0,.2,1);
+  }
+  .flip-inner{
+    position:relative;width:100%;height:100%;
+    transform-style:preserve-3d;
+    transition:transform .5s cubic-bezier(.4,0,.2,1);
+  }
+  .flip-inner.flipped{transform:rotateY(180deg);}
+  .flip-face{
+    position:absolute;inset:0;backface-visibility:hidden;
+    border-radius:12px;background:var(--panel);border:1px solid var(--border);
+  }
+  .flip-face.front{overflow:hidden;}
+  .flip-face.back{overflow-y:auto;padding:20px;transform:rotateY(180deg);}
   .toast{
     position:fixed;bottom:20px;right:20px;background:var(--panel-2);border:1px solid var(--border);
     padding:12px 18px;border-radius:var(--radius);z-index:200;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,.4);
@@ -443,7 +465,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.9';
+const APP_VERSION = '0.10';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1393,7 +1415,7 @@ function renderDiscoverSection(containerId, items, type){
       ? state.films.some(f=>f.tmdb_id===r.id)
       : state.series.some(s=>s.tmdb_id===r.id);
     return `
-      <div class="discover-card" style="cursor:pointer;" onclick="openDiscoverDetail(${r.id}, '${type}')">
+      <div class="discover-card" style="cursor:pointer;" onclick="openDiscoverDetail(event, ${r.id}, '${type}')">
         <div style="position:relative;">
           <span class="note-badge">★ ${note}</span>
           ${poster ? `<img src="${poster}" alt="">` : `<div class="no-poster">${escapeHtml(title)}</div>`}
@@ -1427,9 +1449,7 @@ function findDiscoverItem(tmdbId, type){
   return null;
 }
 
-function openDiscoverDetail(tmdbId, type){
-  const r = findDiscoverItem(tmdbId, type);
-  if(!r) return;
+function buildDiscoverDetailHtml(r, type){
   const title = type === 'movie' ? r.title : r.name;
   const dateStr = type === 'movie' ? r.release_date : r.first_air_date;
   const year = dateStr ? dateStr.substring(0,4) : '';
@@ -1440,7 +1460,8 @@ function openDiscoverDetail(tmdbId, type){
     : state.series.some(s=>s.tmdb_id===r.id);
   const tmdbUrl = `https://www.themoviedb.org/${type}/${r.id}`;
 
-  document.getElementById('detail-content').innerHTML = `
+  return `
+    <button class="close-x" onclick="closeCardFlip()">✕</button>
     <div class="detail-header">
       ${poster ? `<img src="${poster}">` : ''}
       <div>
@@ -1449,11 +1470,93 @@ function openDiscoverDetail(tmdbId, type){
         <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(r.overview || 'Pas de résumé disponible.')}</p>
         ${alreadyAdded
           ? `<button class="btn secondary" disabled style="opacity:.6;">Déjà dans ta liste</button>`
-          : `<button class="btn" onclick="quickAddFromDiscover(${r.id}, '${type}'); closeModal('detail-modal');">+ Ajouter</button>`}
+          : `<button class="btn" onclick="quickAddFromDiscover(${r.id}, '${type}').then(closeCardFlip)">+ Ajouter</button>`}
       </div>
     </div>
   `;
-  openModal('detail-modal');
+}
+
+function openDiscoverDetail(e, tmdbId, type){
+  const cardEl = e.currentTarget;
+  const r = findDiscoverItem(tmdbId, type);
+  if(!r) return;
+  startCardFlip(cardEl, buildDiscoverDetailHtml(r, type));
+}
+
+/* =========================================================
+   ANIMATION "FLIP & GROW" carte -> fenêtre détail
+   (test initial sur l'onglet Découvrir)
+   ========================================================= */
+let activeFlip = null;
+
+function startCardFlip(cardEl, backHtml){
+  if(activeFlip) return; // une animation à la fois
+  const rect = cardEl.getBoundingClientRect();
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'flip-backdrop';
+  backdrop.onclick = closeCardFlip;
+  document.body.appendChild(backdrop);
+
+  const card = document.createElement('div');
+  card.className = 'flip-card';
+  card.style.top = rect.top + 'px';
+  card.style.left = rect.left + 'px';
+  card.style.width = rect.width + 'px';
+  card.style.height = rect.height + 'px';
+  card.innerHTML = `
+    <div class="flip-inner">
+      <div class="flip-face front discover-card">${cardEl.innerHTML}</div>
+      <div class="flip-face back">${backHtml}</div>
+    </div>
+  `;
+  document.body.appendChild(card);
+  cardEl.style.visibility = 'hidden';
+
+  const targetW = Math.min(window.innerWidth - 32, 700);
+  const targetH = Math.min(window.innerHeight - 80, window.innerHeight * 0.85);
+  const targetTop = Math.max(40, (window.innerHeight - targetH) / 2);
+  const targetLeft = (window.innerWidth - targetW) / 2;
+
+  // Forcer un reflow avant de changer les valeurs cibles, pour que la transition CSS se déclenche
+  card.getBoundingClientRect();
+
+  requestAnimationFrame(()=>{
+    backdrop.classList.add('show');
+    card.style.top = targetTop + 'px';
+    card.style.left = targetLeft + 'px';
+    card.style.width = targetW + 'px';
+    card.style.height = targetH + 'px';
+    card.querySelector('.flip-inner').classList.add('flipped');
+  });
+
+  activeFlip = { card, backdrop, cardEl, rect };
+  document.addEventListener('keydown', flipEscHandler);
+}
+
+function closeCardFlip(){
+  if(!activeFlip) return;
+  const { card, backdrop, cardEl, rect } = activeFlip;
+  card.style.top = rect.top + 'px';
+  card.style.left = rect.left + 'px';
+  card.style.width = rect.width + 'px';
+  card.style.height = rect.height + 'px';
+  card.querySelector('.flip-inner').classList.remove('flipped');
+  backdrop.classList.remove('show');
+
+  const cleanup = ()=>{
+    card.remove();
+    backdrop.remove();
+    if(cardEl && cardEl.isConnected) cardEl.style.visibility = '';
+    document.removeEventListener('keydown', flipEscHandler);
+    activeFlip = null;
+  };
+  card.addEventListener('transitionend', cleanup, { once:true });
+  setTimeout(cleanup, 600); // filet de sécurité si transitionend ne se déclenche pas
+}
+
+function flipEscHandler(ev){
+  if(ev.key === 'Escape') closeCardFlip();
 }
 
 function parseRssItems(xmlText){
