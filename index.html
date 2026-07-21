@@ -451,11 +451,15 @@
   </div>
 </div>
 
-<!-- DETAIL MODAL -->
-<div class="modal-overlay" id="detail-modal">
-  <div class="modal">
-    <button class="close-x" onclick="closeModal('detail-modal')">✕</button>
-    <div id="detail-content"></div>
+<!-- DETAIL FLIP (fiche film/série animée depuis sa carte) -->
+<div class="flip-backdrop" id="detail-flip-backdrop" onclick="closeDetailFlip()"></div>
+<div class="flip-card" id="detail-flip-card" style="display:none;">
+  <div class="flip-inner" id="detail-flip-inner">
+    <div class="flip-face front discover-card" id="detail-flip-front"></div>
+    <div class="flip-face back" id="detail-flip-back">
+      <button class="close-x" onclick="closeDetailFlip()">✕</button>
+      <div id="detail-content"></div>
+    </div>
   </div>
 </div>
 
@@ -465,7 +469,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.12';
+const APP_VERSION = '0.13';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -688,7 +692,7 @@ function renderFilms(){
 
   if(filmsView === 'card'){
     c.innerHTML = '<div class="grid">' + list.map(f=>`
-      <div class="card" onclick="openFilmDetail('${f.id}')">
+      <div class="card" onclick="openFilmDetailFromCard(this, '${f.id}')">
         <span class="badge ${f.vu?'watched':'unwatched'}">${f.vu?'Vu':'Non vu'}</span>
         ${f.affiche_url ? `<img src="${f.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(f.titre)}</div>`}
         <div class="info">
@@ -824,7 +828,7 @@ function renderSeries(){
       const badgeClass = stopped ? 'unwatched' : (unw>0?'unwatched':'watched');
       const badgeText = stopped ? '⏸ Arrêtée' : (unw>0? unw+' à voir' : 'À jour');
       return `
-      <div class="card" onclick="openSerieDetail('${s.id}')">
+      <div class="card" onclick="openSerieDetailFromCard(this, '${s.id}')">
         <span class="badge ${badgeClass}">${badgeText}</span>
         ${s.affiche_url ? `<img src="${s.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(s.titre)}</div>`}
         <div class="info">
@@ -902,11 +906,13 @@ function renderSerieDetailModal(){
     <h3>Saisons</h3>
     ${seasonsHtml}
   `;
+  resizeDetailFlipToContent();
 }
 function toggleSeasonBlock(headEl, seasonNum){
   headEl.nextElementSibling.classList.toggle('open');
   if(openSeasonNumbers.has(seasonNum)) openSeasonNumbers.delete(seasonNum);
   else openSeasonNumbers.add(seasonNum);
+  resizeDetailFlipToContent();
 }
 function toggleEpisode(serieId, seasonNum, epNum){
   const s = state.series.find(x=>String(x.id)===String(serieId));
@@ -987,8 +993,14 @@ function renderDashboard(){
 /* =========================================================
    MODALS génériques
    ========================================================= */
-function openModal(id){ document.getElementById(id).classList.add('open'); }
-function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function openModal(id){
+  if(id === 'detail-modal'){ handleDetailModalOpen(); return; }
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id){
+  if(id === 'detail-modal'){ closeDetailFlip(); return; }
+  document.getElementById(id).classList.remove('open');
+}
 document.querySelectorAll('.modal-overlay').forEach(ov=>{
   ov.addEventListener('click', (e)=>{ if(e.target === ov) ov.classList.remove('open'); });
 });
@@ -1011,6 +1023,7 @@ document.addEventListener('keydown', (e)=>{
 
   if(e.key === 'Escape'){
     document.querySelectorAll('.modal-overlay.open').forEach(ov=>ov.classList.remove('open'));
+    if(detailFlipOpen) closeDetailFlip();
     return;
   }
 
@@ -1024,8 +1037,7 @@ document.addEventListener('keydown', (e)=>{
   }
 
   if(e.key === 'v' || e.key === 'V'){
-    const detailOpen = document.getElementById('detail-modal').classList.contains('open');
-    if(!detailOpen || !openDetailId) return;
+    if(!detailFlipOpen || !openDetailId) return;
     if(openDetailType === 'film'){
       e.preventDefault();
       toggleFilmWatched(openDetailId);
@@ -1577,6 +1589,137 @@ function closeCardFlip(){
 
 function flipEscHandler(ev){
   if(ev.key === 'Escape') closeCardFlip();
+}
+
+/* =========================================================
+   FLIP DETAIL (fiches Films / Séries, contenu vivant)
+   Réutilise le même principe que le flip Découvrir, mais anime
+   un conteneur persistant (#detail-flip-card) dont le contenu
+   (#detail-content) continue d'être mis à jour par le code existant
+   (renderSerieDetailModal, toggleEpisode, etc.) sans rien casser.
+   ========================================================= */
+let pendingFlipSourceEl = null; // carte source, posée juste avant l'ouverture
+let detailFlipOpen = false;
+let detailFlipSourceRect = null;
+let detailFlipSourceEl = null;
+
+function handleDetailModalOpen(){
+  if(detailFlipOpen){
+    // La fiche est déjà ouverte : c'est un re-rendu (coche, accordéon...) → juste un ajustement de taille
+    pendingFlipSourceEl = null;
+    resizeDetailFlipToContent();
+    return;
+  }
+  const sourceEl = pendingFlipSourceEl;
+  pendingFlipSourceEl = null;
+  startDetailFlip(sourceEl);
+}
+
+function startDetailFlip(sourceEl){
+  const card = document.getElementById('detail-flip-card');
+  const front = document.getElementById('detail-flip-front');
+  const backWrap = document.getElementById('detail-flip-back');
+  const inner = document.getElementById('detail-flip-inner');
+  const backdrop = document.getElementById('detail-flip-backdrop');
+
+  let rect;
+  if(sourceEl){
+    rect = sourceEl.getBoundingClientRect();
+    front.innerHTML = sourceEl.innerHTML;
+    sourceEl.style.visibility = 'hidden';
+  } else {
+    const w = 120, h = 180;
+    rect = { left:(window.innerWidth-w)/2, top:(window.innerHeight-h)/2, width:w, height:h };
+    front.innerHTML = '';
+  }
+
+  card.style.display = 'block';
+  card.style.top = rect.top + 'px';
+  card.style.left = rect.left + 'px';
+  card.style.width = rect.width + 'px';
+  card.style.height = rect.height + 'px';
+  inner.classList.remove('flipped');
+
+  card.getBoundingClientRect(); // forcer un reflow avant transition
+
+  const targetW = Math.min(window.innerWidth - 32, 700);
+  const naturalH = measureBackContentHeight(backWrap.innerHTML, targetW);
+  const maxH = Math.min(window.innerHeight - 40, window.innerHeight * 0.9);
+  const targetH = Math.max(180, Math.min(naturalH, maxH));
+
+  const margin = 16;
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const maxLeft = Math.max(margin, window.innerWidth - targetW - margin);
+  const maxTop = Math.max(margin, window.innerHeight - targetH - margin);
+  const targetLeft = Math.min(Math.max(centerX - targetW / 2, margin), maxLeft);
+  const targetTop = Math.min(Math.max(centerY - targetH / 2, margin), maxTop);
+
+  requestAnimationFrame(()=>{
+    backdrop.classList.add('show');
+    card.style.top = targetTop + 'px';
+    card.style.left = targetLeft + 'px';
+    card.style.width = targetW + 'px';
+    card.style.height = targetH + 'px';
+    inner.classList.add('flipped');
+  });
+
+  detailFlipOpen = true;
+  detailFlipSourceRect = rect;
+  detailFlipSourceEl = sourceEl;
+}
+
+function resizeDetailFlipToContent(){
+  if(!detailFlipOpen) return;
+  const card = document.getElementById('detail-flip-card');
+  const backWrap = document.getElementById('detail-flip-back');
+  const currentRect = card.getBoundingClientRect();
+  const naturalH = measureBackContentHeight(backWrap.innerHTML, currentRect.width);
+  const maxH = Math.min(window.innerHeight - 40, window.innerHeight * 0.9);
+  const targetH = Math.max(180, Math.min(naturalH, maxH));
+  const margin = 16;
+  const centerY = currentRect.top + currentRect.height / 2;
+  const maxTop = Math.max(margin, window.innerHeight - targetH - margin);
+  const targetTop = Math.min(Math.max(centerY - targetH / 2, margin), maxTop);
+  card.style.height = targetH + 'px';
+  card.style.top = targetTop + 'px';
+}
+
+function closeDetailFlip(){
+  if(!detailFlipOpen) return;
+  const card = document.getElementById('detail-flip-card');
+  const inner = document.getElementById('detail-flip-inner');
+  const backdrop = document.getElementById('detail-flip-backdrop');
+  const rect = detailFlipSourceRect;
+
+  if(rect){
+    card.style.top = rect.top + 'px';
+    card.style.left = rect.left + 'px';
+    card.style.width = rect.width + 'px';
+    card.style.height = rect.height + 'px';
+  }
+  inner.classList.remove('flipped');
+  backdrop.classList.remove('show');
+
+  const sourceEl = detailFlipSourceEl;
+  const cleanup = ()=>{
+    card.style.display = 'none';
+    if(sourceEl && sourceEl.isConnected) sourceEl.style.visibility = '';
+    detailFlipOpen = false;
+    detailFlipSourceRect = null;
+    detailFlipSourceEl = null;
+  };
+  card.addEventListener('transitionend', cleanup, { once:true });
+  setTimeout(cleanup, 600);
+}
+
+function openFilmDetailFromCard(cardEl, id){
+  pendingFlipSourceEl = cardEl;
+  openFilmDetail(id);
+}
+function openSerieDetailFromCard(cardEl, id){
+  pendingFlipSourceEl = cardEl;
+  openSerieDetail(id);
 }
 
 function parseRssItems(xmlText){
