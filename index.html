@@ -465,7 +465,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.11';
+const APP_VERSION = '0.12';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1529,8 +1529,14 @@ function startCardFlip(cardEl, backHtml){
   const maxH = Math.min(window.innerHeight - 40, window.innerHeight * 0.9);
   const naturalH = measureBackContentHeight(backHtml, targetW);
   const targetH = Math.max(180, Math.min(naturalH, maxH));
-  const targetTop = Math.max(20, (window.innerHeight - targetH) / 2);
-  const targetLeft = (window.innerWidth - targetW) / 2;
+
+  const margin = 16;
+  const cardCenterX = rect.left + rect.width / 2;
+  const cardCenterY = rect.top + rect.height / 2;
+  const maxLeft = Math.max(margin, window.innerWidth - targetW - margin);
+  const maxTop = Math.max(margin, window.innerHeight - targetH - margin);
+  const targetLeft = Math.min(Math.max(cardCenterX - targetW / 2, margin), maxLeft);
+  const targetTop = Math.min(Math.max(cardCenterY - targetH / 2, margin), maxTop);
 
   // Forcer un reflow avant de changer les valeurs cibles, pour que la transition CSS se déclenche
   card.getBoundingClientRect();
