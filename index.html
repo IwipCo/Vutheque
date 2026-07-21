@@ -465,7 +465,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.10';
+const APP_VERSION = '0.11';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1489,6 +1489,18 @@ function openDiscoverDetail(e, tmdbId, type){
    ========================================================= */
 let activeFlip = null;
 
+// Mesure la hauteur naturelle du contenu (hors écran, invisible) à la largeur cible,
+// pour que la fenêtre s'ajuste au contenu réel plutôt que d'imposer une hauteur fixe.
+function measureBackContentHeight(backHtml, width){
+  const probe = document.createElement('div');
+  probe.style.cssText = `position:fixed;visibility:hidden;top:-9999px;left:-9999px;width:${width}px;box-sizing:border-box;padding:20px;overflow:visible;`;
+  probe.innerHTML = backHtml;
+  document.body.appendChild(probe);
+  const h = probe.scrollHeight;
+  probe.remove();
+  return h;
+}
+
 function startCardFlip(cardEl, backHtml){
   if(activeFlip) return; // une animation à la fois
   const rect = cardEl.getBoundingClientRect();
@@ -1514,8 +1526,10 @@ function startCardFlip(cardEl, backHtml){
   cardEl.style.visibility = 'hidden';
 
   const targetW = Math.min(window.innerWidth - 32, 700);
-  const targetH = Math.min(window.innerHeight - 80, window.innerHeight * 0.85);
-  const targetTop = Math.max(40, (window.innerHeight - targetH) / 2);
+  const maxH = Math.min(window.innerHeight - 40, window.innerHeight * 0.9);
+  const naturalH = measureBackContentHeight(backHtml, targetW);
+  const targetH = Math.max(180, Math.min(naturalH, maxH));
+  const targetTop = Math.max(20, (window.innerHeight - targetH) / 2);
   const targetLeft = (window.innerWidth - targetW) / 2;
 
   // Forcer un reflow avant de changer les valeurs cibles, pour que la transition CSS se déclenche
