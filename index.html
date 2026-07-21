@@ -452,7 +452,7 @@
 </div>
 
 <!-- DETAIL FLIP (fiche film/série animée depuis sa carte) -->
-<div class="flip-backdrop" id="detail-flip-backdrop" onclick="closeDetailFlip()"></div>
+<div class="flip-backdrop" id="detail-flip-backdrop" onclick="closeDetailFlip()" style="display:none;"></div>
 <div class="flip-card" id="detail-flip-card" style="display:none;">
   <div class="flip-inner" id="detail-flip-inner">
     <div class="flip-face front discover-card" id="detail-flip-front"></div>
@@ -469,7 +469,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.13';
+const APP_VERSION = '0.14';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1634,6 +1634,7 @@ function startDetailFlip(sourceEl){
   }
 
   card.style.display = 'block';
+  backdrop.style.display = 'block';
   card.style.top = rect.top + 'px';
   card.style.left = rect.left + 'px';
   card.style.width = rect.width + 'px';
@@ -1704,6 +1705,7 @@ function closeDetailFlip(){
   const sourceEl = detailFlipSourceEl;
   const cleanup = ()=>{
     card.style.display = 'none';
+    backdrop.style.display = 'none';
     if(sourceEl && sourceEl.isConnected) sourceEl.style.visibility = '';
     detailFlipOpen = false;
     detailFlipSourceRect = null;
