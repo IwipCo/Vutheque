@@ -192,6 +192,12 @@
   .episode-row .ep-date{color:var(--muted);font-size:12px;width:90px;flex-shrink:0;}
   .episodes-wrap{display:none;}
   .episodes-wrap.open{display:block;}
+  .quick-episode-row{transition:background .3s ease, transform .3s ease, opacity .3s ease;}
+  .quick-episode-row.just-watched{
+    background:var(--accent-2) !important;
+    transform:scale(0.98);
+    opacity:.55;
+  }
 
   label.field{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;}
   .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;}
@@ -332,11 +338,11 @@
       <div class="settings-note" style="margin:0;">Basé sur les notes publiques TMDB · région France</div>
     </div>
 
-    <h3>🎬 Films au cinéma en ce moment</h3>
-    <div id="discover-now-playing" class="grid"></div>
-
-    <h3 style="margin-top:28px;">🍿 Mon cinéma</h3>
+    <h3>🍿 Mon cinéma</h3>
     <div id="discover-cinema"></div>
+
+    <h3 style="margin-top:28px;">🎬 Films au cinéma en ce moment</h3>
+    <div id="discover-now-playing" class="grid"></div>
 
     <h3 style="margin-top:28px;">📈 Séries tendances du moment</h3>
     <div id="discover-trending-tv" class="grid"></div>
@@ -469,12 +475,13 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.14';
+const APP_VERSION = '0.15';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
 let seriesView = 'card';
 let currentSearchType = 'movie';
+let lastSearchResults = [];
 let openDetailId = null;
 let openDetailType = null;
 
@@ -694,6 +701,7 @@ function renderFilms(){
     c.innerHTML = '<div class="grid">' + list.map(f=>`
       <div class="card" onclick="openFilmDetailFromCard(this, '${f.id}')">
         <span class="badge ${f.vu?'watched':'unwatched'}">${f.vu?'Vu':'Non vu'}</span>
+        ${f.commentaire ? `<span class="badge" style="top:auto;bottom:6px;right:6px;background:rgba(0,0,0,.7);" title="${escapeHtml(f.commentaire)}">💬</span>` : ''}
         ${f.affiche_url ? `<img src="${f.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(f.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(f.titre)}</div>
@@ -735,11 +743,21 @@ function openFilmDetail(id){
         <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(f.synopsis||'')}</p>
         <button class="btn ${f.vu?'secondary':''}" onclick="toggleFilmWatched('${f.id}')">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button>
         <button class="btn danger" onclick="deleteFilm('${f.id}')">Supprimer</button>
+        <label class="field">Commentaire (qui l'a recommandé, lien vers un site...)</label>
+        <textarea id="film-comment-input" rows="3" style="width:100%;max-width:420px;resize:vertical;">${escapeHtml(f.commentaire||'')}</textarea><br>
+        <button class="btn secondary" style="margin-top:6px;" onclick="saveFilmComment('${f.id}')">💾 Enregistrer le commentaire</button>
       </div>
     </div>
   `;
   document.getElementById('detail-content').innerHTML = html;
   openModal('detail-modal');
+}
+function saveFilmComment(id){
+  const f = state.films.find(x=>String(x.id)===String(id));
+  if(!f) return;
+  f.commentaire = document.getElementById('film-comment-input').value;
+  saveLocalState();
+  showToast('Commentaire enregistré', 'success');
 }
 function toggleFilmWatched(id, skipDetailOpen){
   const f = state.films.find(x=>String(x.id)===String(id));
@@ -760,9 +778,19 @@ function deleteFilm(id){
 /* =========================================================
    RENDU - SERIES
    ========================================================= */
+// Un épisode est "diffusé" s'il n'a pas de date connue (on ne peut pas savoir, donc on le
+// traite comme déjà sorti) ou si sa date de diffusion est passée ou aujourd'hui.
+function isEpisodeReleased(ep){
+  if(!ep.date_diffusion) return true;
+  const d = new Date(ep.date_diffusion);
+  if(isNaN(d.getTime())) return true;
+  const today = new Date();
+  today.setHours(23,59,59,999); // inclut les épisodes qui sortent aujourd'hui
+  return d <= today;
+}
 function unwatchedCount(serie){
   let n=0;
-  (serie.saisons||[]).forEach(s=> s.episodes.forEach(e=>{ if(!e.vu) n++; }));
+  (serie.saisons||[]).forEach(s=> s.episodes.forEach(e=>{ if(!e.vu && isEpisodeReleased(e)) n++; }));
   return n;
 }
 function totalCount(serie){
@@ -775,7 +803,7 @@ function getFirstUnwatchedEpisode(serie){
   for(const saison of saisons){
     const episodes = saison.episodes.slice().sort((a,b)=>a.numero-b.numero);
     for(const ep of episodes){
-      if(!ep.vu) return { saison: saison.numero, episode: ep };
+      if(!ep.vu && isEpisodeReleased(ep)) return { saison: saison.numero, episode: ep };
     }
   }
   return null;
@@ -804,13 +832,13 @@ function renderSeries(){
       return;
     }
     c.innerHTML = rows.map(({s, next})=>`
-      <div class="episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;padding:12px 14px;">
+      <div class="episode-row quick-episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;padding:12px 14px;">
         ${s.affiche_url ? `<img class="list-poster" src="${s.affiche_url}">` : ''}
         <span class="ep-title" style="cursor:pointer;" onclick="openSerieDetail('${s.id}')">
           <strong>${escapeHtml(s.titre)}</strong> — S${next.saison} E${next.episode.numero} · ${escapeHtml(next.episode.titre||'')}
         </span>
         <span class="ep-date">${next.episode.date_diffusion||''}</span>
-        <button class="btn" onclick="markEpisodeWatchedQuick('${s.id}', ${next.saison}, ${next.episode.numero})">✓ Vu</button>
+        <button class="btn" onclick="markEpisodeWatchedQuick(this, '${s.id}', ${next.saison}, ${next.episode.numero})">✓ Vu</button>
       </div>
     `).join('');
     return;
@@ -830,6 +858,7 @@ function renderSeries(){
       return `
       <div class="card" onclick="openSerieDetailFromCard(this, '${s.id}')">
         <span class="badge ${badgeClass}">${badgeText}</span>
+        ${s.commentaire ? `<span class="badge" style="top:auto;bottom:6px;right:6px;background:rgba(0,0,0,.7);" title="${escapeHtml(s.commentaire)}">💬</span>` : ''}
         ${s.affiche_url ? `<img src="${s.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(s.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(s.titre)}</div>
@@ -864,8 +893,10 @@ function openSerieDetail(id){
 function renderSerieDetailModal(){
   const s = state.series.find(x=>String(x.id)===String(openDetailId));
   if(!s) return;
+  const existingTextarea = document.getElementById('serie-comment-input');
+  const commentDraft = existingTextarea ? existingTextarea.value : (s.commentaire || '');
   const seasonsHtml = (s.saisons||[]).map(season=>{
-    const unw = season.episodes.filter(e=>!e.vu).length;
+    const unw = season.episodes.filter(e=>!e.vu && isEpisodeReleased(e)).length;
     const isOpen = openSeasonNumbers.has(season.numero);
     return `
     <div class="season-block">
@@ -881,7 +912,7 @@ function renderSerieDetailModal(){
         ${season.episodes.map(ep=>`
           <div class="episode-row">
             <input type="checkbox" ${ep.vu?'checked':''} onchange="toggleEpisode('${s.id}', ${season.numero}, ${ep.numero})">
-            <span class="ep-title">${ep.numero}. ${escapeHtml(ep.titre||'')} ${ep.nouveau?'<span class="badge new" style="position:static;">Nouveau</span>':''}</span>
+            <span class="ep-title">${ep.numero}. ${escapeHtml(ep.titre||'')} ${ep.nouveau?'<span class="badge new" style="position:static;">Nouveau</span>':''} ${!isEpisodeReleased(ep)?'<span class="badge" style="position:static;background:var(--panel-2);color:var(--muted);">à venir</span>':''}</span>
             <span class="ep-date">${ep.date_diffusion||''}</span>
           </div>
         `).join('')}
@@ -901,12 +932,22 @@ function renderSerieDetailModal(){
         <button class="btn" onclick="checkSeriesUpdates('${s.id}')">🔄 Vérifier les nouveaux épisodes</button>
         <button class="btn secondary" onclick="toggleSerieTracking('${s.id}')">${s.suivie === false ? '▶️ Reprendre le suivi' : '⏸ Arrêter de suivre'}</button>
         <button class="btn danger" onclick="deleteSerie('${s.id}')">Supprimer</button>
+        <label class="field">Commentaire (qui l'a recommandé, lien vers un site...)</label>
+        <textarea id="serie-comment-input" rows="3" style="width:100%;max-width:420px;resize:vertical;">${escapeHtml(commentDraft)}</textarea><br>
+        <button class="btn secondary" style="margin-top:6px;" onclick="saveSerieComment('${s.id}')">💾 Enregistrer le commentaire</button>
       </div>
     </div>
     <h3>Saisons</h3>
     ${seasonsHtml}
   `;
   resizeDetailFlipToContent();
+}
+function saveSerieComment(id){
+  const s = state.series.find(x=>String(x.id)===String(id));
+  if(!s) return;
+  s.commentaire = document.getElementById('serie-comment-input').value;
+  saveLocalState();
+  showToast('Commentaire enregistré', 'success');
 }
 function toggleSeasonBlock(headEl, seasonNum){
   headEl.nextElementSibling.classList.toggle('open');
@@ -926,16 +967,27 @@ function toggleEpisode(serieId, seasonNum, epNum){
   renderSerieDetailModal();
   renderSeries();
 }
-function markEpisodeWatchedQuick(serieId, seasonNum, epNum){
+function markEpisodeWatchedQuick(btnEl, serieId, seasonNum, epNum){
   const s = state.series.find(x=>String(x.id)===String(serieId));
   if(!s) return;
   const season = s.saisons.find(sx=>sx.numero===seasonNum);
   const ep = season?.episodes.find(e=>e.numero===epNum);
   if(!ep) return;
-  ep.vu = true;
-  ep.nouveau = false;
-  saveLocalState();
-  renderSeries(); // le prochain épisode non vu prend automatiquement sa place
+
+  const row = btnEl ? btnEl.closest('.quick-episode-row') : null;
+  const applyChange = ()=>{
+    ep.vu = true;
+    ep.nouveau = false;
+    saveLocalState();
+    renderSeries(); // le prochain épisode non vu prend automatiquement sa place
+  };
+
+  if(row){
+    row.classList.add('just-watched');
+    setTimeout(applyChange, 280); // laisse le temps de voir l'animation avant le remplacement
+  } else {
+    applyChange();
+  }
 }
 function deleteSerie(id){
   if(!confirm('Supprimer cette série ?')) return;
@@ -1085,25 +1137,34 @@ async function doSearch(){
       resultsEl.innerHTML = '<div class="empty-state">Aucun résultat</div>';
       return;
     }
-    resultsEl.innerHTML = data.results.slice(0,10).map(r=>{
+    lastSearchResults = data.results.slice(0,10);
+    resultsEl.innerHTML = lastSearchResults.map((r, idx)=>{
       const title = currentSearchType==='movie' ? r.title : r.name;
       const date = currentSearchType==='movie' ? r.release_date : r.first_air_date;
       const year = date ? date.substring(0,4) : '';
       const poster = r.poster_path ? TMDB_IMG + r.poster_path : '';
+      const overview = r.overview ? escapeHtml(r.overview) : 'Pas de résumé disponible.';
       return `
-        <div class="search-result">
-          ${poster ? `<img src="${poster}">` : `<div style="width:46px;height:69px;background:var(--panel-2);border-radius:4px;"></div>`}
-          <div class="sr-info">
-            <div class="sr-title">${escapeHtml(title)}</div>
-            <div class="sr-year">${year}</div>
+        <div class="search-result" style="flex-direction:column;align-items:stretch;">
+          <div style="display:flex;gap:12px;align-items:center;">
+            ${poster ? `<img src="${poster}">` : `<div style="width:46px;height:69px;background:var(--panel-2);border-radius:4px;"></div>`}
+            <div class="sr-info" style="cursor:pointer;" onclick="toggleSearchOverview(${idx})">
+              <div class="sr-title">${escapeHtml(title)} <span style="color:var(--muted);font-weight:400;">(résumé ▾)</span></div>
+              <div class="sr-year">${year}</div>
+            </div>
+            <button class="btn" onclick="addFromTmdb(${r.id})">Ajouter</button>
           </div>
-          <button class="btn" onclick="addFromTmdb(${r.id})">Ajouter</button>
+          <div id="sr-overview-${idx}" style="display:none;font-size:12px;color:var(--muted);margin-top:8px;padding-left:58px;">${overview}</div>
         </div>
       `;
     }).join('');
   }catch(err){
     resultsEl.innerHTML = '<div class="empty-state">Erreur : '+escapeHtml(err.message)+'</div>';
   }
+}
+function toggleSearchOverview(idx){
+  const el = document.getElementById('sr-overview-' + idx);
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 function parseTmdbLink(input){
@@ -1788,7 +1849,11 @@ function markSeasonWatched(serieId, seasonNum, watched){
   if(!s) return;
   const season = s.saisons.find(sx=>sx.numero===seasonNum);
   if(!season) return;
-  season.episodes.forEach(e=>{ e.vu = watched; if(watched) e.nouveau = false; });
+  season.episodes.forEach(e=>{
+    if(watched && !isEpisodeReleased(e)) return; // on ne marque pas comme vu un épisode pas encore diffusé
+    e.vu = watched;
+    if(watched) e.nouveau = false;
+  });
   saveLocalState();
   openSeasonNumbers.add(seasonNum);
   renderSerieDetailModal();
@@ -1867,7 +1932,7 @@ async function ghSave(silent){
   if(!silent) showToast('Sauvegarde sur GitHub...', '');
 
   try{
-    await ghSaveAttempt(apiUrl, branch, cfg, silent, false);
+    await ghSaveAttempt(apiUrl, branch, cfg);
     document.getElementById('last-save-note').textContent = 'Dernière sauvegarde GitHub : ' + new Date().toLocaleString() + (silent ? ' (auto)' : '');
     showToast(silent ? 'Sauvegarde automatique effectuée ✅' : 'Sauvegardé sur GitHub ✅', 'success');
   }catch(err){
@@ -1882,37 +1947,49 @@ async function ghSave(silent){
 }
 
 // Effectue GET (sha) + PUT. En cas de conflit 409 (sha périmé, ex: fichier modifié
-// entre-temps sur GitHub ou depuis un autre onglet/appareil), on retente une fois
-// automatiquement avec le sha à jour avant d'abandonner.
-async function ghSaveAttempt(apiUrl, branch, cfg, silent, isRetry){
-  let sha = null;
-  const getRes = await fetch(apiUrl + '?ref=' + branch, {
-    headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' }
-  });
-  if(getRes.ok){
-    const getData = await getRes.json();
-    sha = getData.sha;
-  } else if(getRes.status !== 404){
-    throw new Error('Lecture du fichier échouée (' + getRes.status + ')');
-  }
-  const content = utf8_to_b64(JSON.stringify(state, null, 2));
-  const putRes = await fetch(apiUrl, {
-    method:'PUT',
-    headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' },
-    body: JSON.stringify({
-      message: 'Mise à jour watchlist - ' + new Date().toISOString(),
-      content,
-      branch,
-      sha: sha || undefined
-    })
-  });
-  if(!putRes.ok){
-    if(putRes.status === 409 && !isRetry){
-      return ghSaveAttempt(apiUrl, branch, cfg, silent, true); // un seul essai de rattrapage
+// entre-temps sur GitHub, depuis un autre onglet/appareil, ou plusieurs modifications
+// rapprochées), on retente jusqu'à 3 fois avec un sha frais et un petit délai aléatoire
+// avant d'abandonner et de remonter une erreur claire.
+async function ghSaveAttempt(apiUrl, branch, cfg){
+  const maxAttempts = 3;
+  for(let attempt = 1; attempt <= maxAttempts; attempt++){
+    let sha = null;
+    const getRes = await fetch(apiUrl + '?ref=' + branch, {
+      headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' }
+    });
+    if(getRes.ok){
+      const getData = await getRes.json();
+      sha = getData.sha;
+    } else if(getRes.status === 401 || getRes.status === 403){
+      throw new Error('Accès refusé (' + getRes.status + ') — vérifie que ton token GitHub est valide et a bien les droits sur ce dépôt.');
+    } else if(getRes.status !== 404){
+      throw new Error('Lecture du fichier échouée (' + getRes.status + ')');
+    }
+
+    const content = utf8_to_b64(JSON.stringify(state, null, 2));
+    const putRes = await fetch(apiUrl, {
+      method:'PUT',
+      headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' },
+      body: JSON.stringify({
+        message: 'Mise à jour watchlist - ' + new Date().toISOString(),
+        content,
+        branch,
+        sha: sha || undefined
+      })
+    });
+    if(putRes.ok) return;
+
+    if(putRes.status === 409 && attempt < maxAttempts){
+      await new Promise(r => setTimeout(r, 250 + Math.random() * 350)); // petit délai avant de retenter avec un sha frais
+      continue;
     }
     const errData = await putRes.json().catch(()=>({}));
-    throw new Error(errData.message || ('Erreur ' + putRes.status));
+    const hint = putRes.status === 409
+      ? ' (conflit persistant : peut-être un autre onglet/appareil qui sauvegarde en même temps)'
+      : (putRes.status === 422 ? ' (fichier peut-être trop volumineux pour cette méthode, ou branche/chemin invalide)' : '');
+    throw new Error((errData.message || ('Erreur ' + putRes.status)) + hint);
   }
+  throw new Error('Échec de la sauvegarde après plusieurs tentatives.');
 }
 
 async function ghLoad(){
