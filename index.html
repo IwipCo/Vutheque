@@ -475,7 +475,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.15';
+const APP_VERSION = '0.16';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1954,7 +1954,10 @@ async function ghSaveAttempt(apiUrl, branch, cfg){
   const maxAttempts = 3;
   for(let attempt = 1; attempt <= maxAttempts; attempt++){
     let sha = null;
-    const getRes = await fetch(apiUrl + '?ref=' + branch, {
+    // cache:'no-store' + paramètre unique : on veut TOUJOURS le sha le plus récent,
+    // jamais une réponse mise en cache par le navigateur (source probable des conflits persistants).
+    const getRes = await fetch(apiUrl + '?ref=' + branch + '&_=' + Date.now(), {
+      cache: 'no-store',
       headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' }
     });
     if(getRes.ok){
@@ -1969,6 +1972,7 @@ async function ghSaveAttempt(apiUrl, branch, cfg){
     const content = utf8_to_b64(JSON.stringify(state, null, 2));
     const putRes = await fetch(apiUrl, {
       method:'PUT',
+      cache: 'no-store',
       headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' },
       body: JSON.stringify({
         message: 'Mise à jour watchlist - ' + new Date().toISOString(),
@@ -2000,10 +2004,11 @@ async function ghLoad(){
   }
   const path = cfg.gh_path || 'data.json';
   const branch = cfg.gh_branch || 'main';
-  const apiUrl = `https://api.github.com/repos/${cfg.gh_owner}/${cfg.gh_repo}/contents/${path}?ref=${branch}`;
+  const apiUrl = `https://api.github.com/repos/${cfg.gh_owner}/${cfg.gh_repo}/contents/${path}?ref=${branch}&_=${Date.now()}`;
   showToast('Chargement depuis GitHub...', '');
   try{
     const res = await fetch(apiUrl, {
+      cache: 'no-store',
       headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' }
     });
     if(!res.ok) throw new Error('Erreur ' + res.status);
