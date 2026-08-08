@@ -484,7 +484,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.17';
+const APP_VERSION = '0.18';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -710,7 +710,7 @@ function renderFilms(){
     c.innerHTML = '<div class="grid">' + list.map(f=>`
       <div class="card" onclick="openFilmDetailFromCard(this, '${f.id}')">
         <span class="badge ${f.vu?'watched':'unwatched'}">${f.vu?'Vu':'Non vu'}</span>
-        ${f.commentaire ? `<span class="badge" style="top:auto;bottom:6px;right:6px;background:rgba(0,0,0,.7);" title="${escapeHtml(f.commentaire)}">💬</span>` : ''}
+        ${(f.commentaire || f.recommande_par || (f.liens && f.liens.length)) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(f.recommande_par ? 'Recommandé par ' + f.recommande_par : (f.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
         ${f.affiche_url ? `<img src="${f.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(f.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(f.titre)}</div>
@@ -735,11 +735,110 @@ function renderFilms(){
   }
 }
 
+function getKnownTags(){
+  const tags = new Set();
+  state.films.forEach(f=>{ if(f.recommande_par) tags.add(f.recommande_par); });
+  state.series.forEach(s=>{ if(s.recommande_par) tags.add(s.recommande_par); });
+  return Array.from(tags).sort((a,b)=>a.localeCompare(b, 'fr'));
+}
+
+// Récupère les valeurs actuellement saisies (non enregistrées) dans le bloc "infos
+// complémentaires" affiché, pour ne pas les perdre lors des rafraîchissements fréquents
+// (ex: cocher un épisode pendant qu'on est en train de taper un commentaire).
+function captureExtraDraft(fallbackItem){
+  const tagEl = document.getElementById('extra-tag-input');
+  if(!tagEl) return fallbackItem;
+  const commentEl = document.getElementById('extra-comment-input');
+  const links = Array.from(document.querySelectorAll('.extra-link-input')).map(i=>i.value);
+  return Object.assign({}, fallbackItem, {
+    recommande_par: tagEl.value,
+    commentaire: commentEl ? commentEl.value : fallbackItem.commentaire,
+    liens: links
+  });
+}
+
+function renderExtraInfoBlock(item, kind){
+  const links = item.liens || [];
+  const linksHtml = links.map(l => `
+    <div class="extra-link-row" style="display:flex;gap:6px;margin-bottom:6px;">
+      <input type="text" class="extra-link-input" value="${escapeHtml(l)}" style="flex:1;" placeholder="https://...">
+      <button class="btn secondary" onclick="openExtraLink(this)" title="Ouvrir le lien">🔗</button>
+      <button class="btn secondary" onclick="removeExtraLinkRow(this)">✕</button>
+    </div>
+  `).join('');
+  const tagsDatalist = getKnownTags().map(t => `<option value="${escapeHtml(t)}">`).join('');
+  return `
+    <h3 style="margin-top:20px;">Infos complémentaires</h3>
+    <label class="field">Recommandé par</label>
+    <input type="text" id="extra-tag-input" list="extra-known-tags" style="width:100%;max-width:280px;" value="${escapeHtml(item.recommande_par||'')}" placeholder="ex: Alice">
+    <datalist id="extra-known-tags">${tagsDatalist}</datalist>
+
+    <label class="field">Liens (site, article, bande-annonce...)</label>
+    <div id="extra-links-list">${linksHtml}</div>
+    <button class="btn secondary" onclick="addExtraLinkRow()">+ Ajouter un lien</button>
+
+    <label class="field">Commentaire</label>
+    <textarea id="extra-comment-input" rows="3" style="width:100%;max-width:420px;resize:vertical;">${escapeHtml(item.commentaire||'')}</textarea><br>
+
+    <button class="btn" style="margin-top:10px;" onclick="saveExtraInfo('${kind}', '${item.id}')">💾 Enregistrer les infos</button>
+  `;
+}
+function addExtraLinkRow(){
+  const container = document.getElementById('extra-links-list');
+  if(!container) return;
+  const row = document.createElement('div');
+  row.className = 'extra-link-row';
+  row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
+  row.innerHTML = `<input type="text" class="extra-link-input" style="flex:1;" placeholder="https://..."><button class="btn secondary" onclick="openExtraLink(this)" title="Ouvrir le lien">🔗</button><button class="btn secondary" onclick="removeExtraLinkRow(this)">✕</button>`;
+  container.appendChild(row);
+  resizeDetailFlipToContent();
+}
+function removeExtraLinkRow(btn){
+  btn.closest('.extra-link-row').remove();
+  resizeDetailFlipToContent();
+}
+function openExtraLink(btn){
+  const input = btn.closest('.extra-link-row').querySelector('.extra-link-input');
+  const url = input.value.trim();
+  if(!url){ showToast('Aucun lien à ouvrir', 'error'); return; }
+  const finalUrl = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+  window.open(finalUrl, '_blank', 'noopener');
+}
+function saveExtraInfo(kind, id){
+  const tag = document.getElementById('extra-tag-input').value.trim();
+  const comment = document.getElementById('extra-comment-input').value;
+  const liens = Array.from(document.querySelectorAll('.extra-link-input'))
+    .map(inp => inp.value.trim())
+    .filter(v => v.length > 0);
+
+  if(kind === 'film'){
+    const f = state.films.find(x=>String(x.id)===String(id));
+    if(!f) return;
+    f.recommande_par = tag;
+    f.commentaire = comment;
+    f.liens = liens;
+    saveLocalState();
+    renderFilms();
+    openFilmDetail(id);
+  } else {
+    const s = state.series.find(x=>String(x.id)===String(id));
+    if(!s) return;
+    s.recommande_par = tag;
+    s.commentaire = comment;
+    s.liens = liens;
+    saveLocalState();
+    renderSeries();
+    renderSerieDetailModal();
+  }
+  showToast('Infos enregistrées', 'success');
+}
+
 function openFilmDetail(id){
   const f = state.films.find(x=>String(x.id)===String(id));
   if(!f) return;
   openDetailType = 'film';
   openDetailId = id;
+  const draftItem = captureExtraDraft(f);
   const html = `
     <div class="detail-header">
       ${f.affiche_url ? `<img src="${f.affiche_url}">` : ''}
@@ -752,21 +851,12 @@ function openFilmDetail(id){
         <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(f.synopsis||'')}</p>
         <button class="btn ${f.vu?'secondary':''}" onclick="toggleFilmWatched('${f.id}')">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button>
         <button class="btn danger" onclick="deleteFilm('${f.id}')">Supprimer</button>
-        <label class="field">Commentaire (qui l'a recommandé, lien vers un site...)</label>
-        <textarea id="film-comment-input" rows="3" style="width:100%;max-width:420px;resize:vertical;">${escapeHtml(f.commentaire||'')}</textarea><br>
-        <button class="btn secondary" style="margin-top:6px;" onclick="saveFilmComment('${f.id}')">💾 Enregistrer le commentaire</button>
+        ${renderExtraInfoBlock(draftItem, 'film')}
       </div>
     </div>
   `;
   document.getElementById('detail-content').innerHTML = html;
   openModal('detail-modal');
-}
-function saveFilmComment(id){
-  const f = state.films.find(x=>String(x.id)===String(id));
-  if(!f) return;
-  f.commentaire = document.getElementById('film-comment-input').value;
-  saveLocalState();
-  showToast('Commentaire enregistré', 'success');
 }
 function toggleFilmWatched(id, skipDetailOpen){
   const f = state.films.find(x=>String(x.id)===String(id));
@@ -867,7 +957,7 @@ function renderSeries(){
       return `
       <div class="card" onclick="openSerieDetailFromCard(this, '${s.id}')">
         <span class="badge ${badgeClass}">${badgeText}</span>
-        ${s.commentaire ? `<span class="badge" style="top:auto;bottom:6px;right:6px;background:rgba(0,0,0,.7);" title="${escapeHtml(s.commentaire)}">💬</span>` : ''}
+        ${(s.commentaire || s.recommande_par || (s.liens && s.liens.length)) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(s.recommande_par ? 'Recommandé par ' + s.recommande_par : (s.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
         ${s.affiche_url ? `<img src="${s.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(s.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(s.titre)}</div>
@@ -902,8 +992,7 @@ function openSerieDetail(id){
 function renderSerieDetailModal(){
   const s = state.series.find(x=>String(x.id)===String(openDetailId));
   if(!s) return;
-  const existingTextarea = document.getElementById('serie-comment-input');
-  const commentDraft = existingTextarea ? existingTextarea.value : (s.commentaire || '');
+  const draftItem = captureExtraDraft(s);
   const seasonsHtml = (s.saisons||[]).map(season=>{
     const unw = season.episodes.filter(e=>!e.vu && isEpisodeReleased(e)).length;
     const isOpen = openSeasonNumbers.has(season.numero);
@@ -941,22 +1030,13 @@ function renderSerieDetailModal(){
         <button class="btn" onclick="checkSeriesUpdates('${s.id}')">🔄 Vérifier les nouveaux épisodes</button>
         <button class="btn secondary" onclick="toggleSerieTracking('${s.id}')">${s.suivie === false ? '▶️ Reprendre le suivi' : '⏸ Arrêter de suivre'}</button>
         <button class="btn danger" onclick="deleteSerie('${s.id}')">Supprimer</button>
-        <label class="field">Commentaire (qui l'a recommandé, lien vers un site...)</label>
-        <textarea id="serie-comment-input" rows="3" style="width:100%;max-width:420px;resize:vertical;">${escapeHtml(commentDraft)}</textarea><br>
-        <button class="btn secondary" style="margin-top:6px;" onclick="saveSerieComment('${s.id}')">💾 Enregistrer le commentaire</button>
+        ${renderExtraInfoBlock(draftItem, 'serie')}
       </div>
     </div>
     <h3>Saisons</h3>
     ${seasonsHtml}
   `;
   resizeDetailFlipToContent();
-}
-function saveSerieComment(id){
-  const s = state.series.find(x=>String(x.id)===String(id));
-  if(!s) return;
-  s.commentaire = document.getElementById('serie-comment-input').value;
-  saveLocalState();
-  showToast('Commentaire enregistré', 'success');
 }
 function toggleSeasonBlock(headEl, seasonNum){
   headEl.nextElementSibling.classList.toggle('open');
