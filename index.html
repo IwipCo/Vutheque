@@ -2,9 +2,15 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Vuthèque</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AC%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vuthèque">
+<meta name="theme-color" content="#4f8cff">
 <style>
   :root{
     --bg: #14161a;
@@ -31,6 +37,9 @@
     align-items:center;
     justify-content:space-between;
     padding:14px 20px;
+    padding-top:max(14px, env(safe-area-inset-top));
+    padding-left:max(20px, env(safe-area-inset-left));
+    padding-right:max(20px, env(safe-area-inset-right));
     background:var(--panel);
     border-bottom:1px solid var(--border);
     position:sticky;
@@ -63,7 +72,7 @@
     font-size:14px;
   }
   .icon-btn:hover{border-color:var(--accent);}
-  main{padding:20px;max-width:1200px;margin:0 auto;}
+  main{padding:20px;padding-bottom:max(20px, env(safe-area-inset-bottom));max-width:1200px;margin:0 auto;}
   .view{display:none;}
   .view.active{display:block;}
   .toolbar{
@@ -475,7 +484,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.16';
+const APP_VERSION = '0.17';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
