@@ -294,6 +294,8 @@
         <option value="annee_asc">Année (ancien d'abord)</option>
         <option value="titre">Titre (A-Z)</option>
         <option value="realisateur">Réalisateur (A-Z)</option>
+        <option value="priorite_desc">Priorité (la plus haute d'abord)</option>
+        <option value="recommande_par">Recommandé par (A-Z)</option>
       </select>
       <div class="spacer"></div>
       <div class="toggle-group">
@@ -322,6 +324,8 @@
         <option value="annee_asc">Année (ancien d'abord)</option>
         <option value="titre">Titre (A-Z)</option>
         <option value="realisateur">Créateur (A-Z)</option>
+        <option value="priorite_desc">Priorité (la plus haute d'abord)</option>
+        <option value="recommande_par">Recommandé par (A-Z)</option>
       </select>
       <div class="spacer"></div>
       <div class="toggle-group">
@@ -484,7 +488,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.18';
+const APP_VERSION = '0.19';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -685,6 +689,10 @@ function sortList(list, sortValue, kind){
       list2.sort((a,b)=>(a.titre||'').localeCompare(b.titre||'', 'fr', {sensitivity:'base'})); break;
     case 'realisateur':
       list2.sort((a,b)=>getPerson(a).localeCompare(getPerson(b), 'fr', {sensitivity:'base'})); break;
+    case 'priorite_desc':
+      list2.sort((a,b)=>(b.priorite||0)-(a.priorite||0)); break;
+    case 'recommande_par':
+      list2.sort((a,b)=>(a.recommande_par||'').localeCompare(b.recommande_par||'', 'fr', {sensitivity:'base'})); break;
     case 'date_ajout_desc':
     default:
       list2.sort((a,b)=>(b.date_ajout||'').localeCompare(a.date_ajout||'')); break;
@@ -715,6 +723,7 @@ function renderFilms(){
         <div class="info">
           <div class="title">${escapeHtml(f.titre)}</div>
           <div class="year">${f.annee || ''}</div>
+          ${starsDisplay(f.priorite)}
           <button class="btn ${f.vu?'secondary':''}" style="width:100%;margin-top:6px;padding:5px 0;font-size:12px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button>
         </div>
       </div>
@@ -745,7 +754,10 @@ function getKnownTags(){
 // Récupère les valeurs actuellement saisies (non enregistrées) dans le bloc "infos
 // complémentaires" affiché, pour ne pas les perdre lors des rafraîchissements fréquents
 // (ex: cocher un épisode pendant qu'on est en train de taper un commentaire).
-function captureExtraDraft(fallbackItem){
+let lastRenderedDetailKey = null; // clé "film:id" ou "serie:id" de la dernière fiche affichée dans #detail-content
+
+function captureExtraDraft(fallbackItem, key){
+  if(lastRenderedDetailKey !== key) return fallbackItem; // fiche différente de celle déjà affichée : pas de brouillon à récupérer
   const tagEl = document.getElementById('extra-tag-input');
   if(!tagEl) return fallbackItem;
   const commentEl = document.getElementById('extra-comment-input');
@@ -755,6 +767,37 @@ function captureExtraDraft(fallbackItem){
     commentaire: commentEl ? commentEl.value : fallbackItem.commentaire,
     liens: links
   });
+}
+
+function renderPriorityWidget(item, kind){
+  const current = item.priorite || 0;
+  const stars = [1,2,3,4,5].map(n => `
+    <span style="cursor:pointer;font-size:22px;color:${n<=current ? 'var(--warn)' : 'var(--border)'};" onclick="setPriority('${kind}', '${item.id}', ${n})" title="Priorité ${n}/5">★</span>
+  `).join('');
+  return `
+    <div style="margin:12px 0;">
+      <label class="field" style="margin-bottom:2px;">Priorité (optionnel)</label>
+      <span>${stars}</span>
+      ${current ? `<button class="btn secondary" style="margin-left:8px;padding:4px 8px;font-size:12px;" onclick="setPriority('${kind}', '${item.id}', 0)">Effacer</button>` : ''}
+    </div>
+  `;
+}
+function setPriority(kind, id, value){
+  if(kind === 'film'){
+    const f = state.films.find(x=>String(x.id)===String(id));
+    if(!f) return;
+    f.priorite = value || null;
+    saveLocalState();
+    renderFilms();
+    openFilmDetail(id);
+  } else {
+    const s = state.series.find(x=>String(x.id)===String(id));
+    if(!s) return;
+    s.priorite = value || null;
+    saveLocalState();
+    renderSeries();
+    renderSerieDetailModal();
+  }
 }
 
 function renderExtraInfoBlock(item, kind){
@@ -838,7 +881,8 @@ function openFilmDetail(id){
   if(!f) return;
   openDetailType = 'film';
   openDetailId = id;
-  const draftItem = captureExtraDraft(f);
+  const key = 'film:' + id;
+  const draftItem = captureExtraDraft(f, key);
   const html = `
     <div class="detail-header">
       ${f.affiche_url ? `<img src="${f.affiche_url}">` : ''}
@@ -851,11 +895,13 @@ function openFilmDetail(id){
         <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(f.synopsis||'')}</p>
         <button class="btn ${f.vu?'secondary':''}" onclick="toggleFilmWatched('${f.id}')">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button>
         <button class="btn danger" onclick="deleteFilm('${f.id}')">Supprimer</button>
+        ${renderPriorityWidget(f, 'film')}
         ${renderExtraInfoBlock(draftItem, 'film')}
       </div>
     </div>
   `;
   document.getElementById('detail-content').innerHTML = html;
+  lastRenderedDetailKey = key;
   openModal('detail-modal');
 }
 function toggleFilmWatched(id, skipDetailOpen){
@@ -962,6 +1008,7 @@ function renderSeries(){
         <div class="info">
           <div class="title">${escapeHtml(s.titre)}</div>
           <div class="year">${totalCount(s)} épisodes</div>
+          ${starsDisplay(s.priorite)}
         </div>
       </div>`;
     }).join('') + '</div>';
@@ -992,7 +1039,8 @@ function openSerieDetail(id){
 function renderSerieDetailModal(){
   const s = state.series.find(x=>String(x.id)===String(openDetailId));
   if(!s) return;
-  const draftItem = captureExtraDraft(s);
+  const key = 'serie:' + s.id;
+  const draftItem = captureExtraDraft(s, key);
   const seasonsHtml = (s.saisons||[]).map(season=>{
     const unw = season.episodes.filter(e=>!e.vu && isEpisodeReleased(e)).length;
     const isOpen = openSeasonNumbers.has(season.numero);
@@ -1030,12 +1078,14 @@ function renderSerieDetailModal(){
         <button class="btn" onclick="checkSeriesUpdates('${s.id}')">🔄 Vérifier les nouveaux épisodes</button>
         <button class="btn secondary" onclick="toggleSerieTracking('${s.id}')">${s.suivie === false ? '▶️ Reprendre le suivi' : '⏸ Arrêter de suivre'}</button>
         <button class="btn danger" onclick="deleteSerie('${s.id}')">Supprimer</button>
+        ${renderPriorityWidget(s, 'serie')}
         ${renderExtraInfoBlock(draftItem, 'serie')}
       </div>
     </div>
     <h3>Saisons</h3>
     ${seasonsHtml}
   `;
+  lastRenderedDetailKey = key;
   resizeDetailFlipToContent();
 }
 function toggleSeasonBlock(headEl, seasonNum){
@@ -1860,6 +1910,7 @@ function closeDetailFlip(){
     detailFlipOpen = false;
     detailFlipSourceRect = null;
     detailFlipSourceEl = null;
+    lastRenderedDetailKey = null;
   };
   card.addEventListener('transitionend', cleanup, { once:true });
   setTimeout(cleanup, 600);
@@ -2118,6 +2169,10 @@ async function ghLoad(){
 /* =========================================================
    UTILS
    ========================================================= */
+function starsDisplay(n){
+  if(!n) return '';
+  return `<div style="color:var(--warn);font-size:12px;letter-spacing:1px;margin-top:2px;">${'★'.repeat(n)}${'☆'.repeat(5-n)}</div>`;
+}
 function escapeHtml(str){
   if(str===null || str===undefined) return '';
   return String(str)
