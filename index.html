@@ -500,7 +500,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.20';
+const APP_VERSION = '0.21';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -827,41 +827,44 @@ function renderExtraInfoBlock(item, kind){
   const links = item.liens || [];
   const linksHtml = links.map(l => `
     <div class="extra-link-row" style="display:flex;gap:6px;margin-bottom:6px;">
-      <input type="text" class="extra-link-input" value="${escapeHtml(l)}" style="flex:1;" placeholder="https://...">
+      <input type="text" class="extra-link-input" value="${escapeHtml(l)}" style="flex:1;" placeholder="https://..." onblur="saveExtraInfo('${kind}', '${item.id}', true)">
       <button class="btn secondary" onclick="openExtraLink(this)" title="Ouvrir le lien">🔗</button>
-      <button class="btn secondary" onclick="removeExtraLinkRow(this)">✕</button>
+      <button class="btn secondary" onclick="removeExtraLinkRow(this, '${kind}', '${item.id}')">✕</button>
     </div>
   `).join('');
   const tagsDatalist = getKnownTags().map(t => `<option value="${escapeHtml(t)}">`).join('');
   return `
     <h3 style="margin-top:20px;">Infos complémentaires</h3>
+    <div class="settings-note" style="margin-top:0;">Ces champs s'enregistrent automatiquement dès que tu cliques ailleurs (pas besoin d'un bouton).</div>
     <label class="field">Recommandé par</label>
-    <input type="text" id="extra-tag-input" list="extra-known-tags" style="width:100%;max-width:280px;" value="${escapeHtml(item.recommande_par||'')}" placeholder="ex: Alice">
+    <input type="text" id="extra-tag-input" list="extra-known-tags" style="width:100%;max-width:280px;" value="${escapeHtml(item.recommande_par||'')}" placeholder="ex: Alice" onblur="saveExtraInfo('${kind}', '${item.id}', true)">
     <datalist id="extra-known-tags">${tagsDatalist}</datalist>
 
     <label class="field">Liens (site, article, bande-annonce...)</label>
     <div id="extra-links-list">${linksHtml}</div>
-    <button class="btn secondary" onclick="addExtraLinkRow()">+ Ajouter un lien</button>
+    <button class="btn secondary" onclick="addExtraLinkRow('${kind}', '${item.id}')">+ Ajouter un lien</button>
 
     <label class="field">Commentaire</label>
-    <textarea id="extra-comment-input" rows="3" style="width:100%;max-width:420px;resize:vertical;">${escapeHtml(item.commentaire||'')}</textarea><br>
+    <textarea id="extra-comment-input" rows="3" style="width:100%;max-width:420px;resize:vertical;" onblur="saveExtraInfo('${kind}', '${item.id}', true)">${escapeHtml(item.commentaire||'')}</textarea><br>
 
-    <button class="btn" style="margin-top:10px;" onclick="saveExtraInfo('${kind}', '${item.id}')">💾 Enregistrer les infos</button>
+    <button class="btn secondary" style="margin-top:10px;" onclick="saveExtraInfo('${kind}', '${item.id}')">💾 Enregistrer maintenant</button>
   `;
 }
-function addExtraLinkRow(){
+function addExtraLinkRow(kind, id){
   const container = document.getElementById('extra-links-list');
   if(!container) return;
   const row = document.createElement('div');
   row.className = 'extra-link-row';
   row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
-  row.innerHTML = `<input type="text" class="extra-link-input" style="flex:1;" placeholder="https://..."><button class="btn secondary" onclick="openExtraLink(this)" title="Ouvrir le lien">🔗</button><button class="btn secondary" onclick="removeExtraLinkRow(this)">✕</button>`;
+  row.innerHTML = `<input type="text" class="extra-link-input" style="flex:1;" placeholder="https://..." onblur="saveExtraInfo('${kind}', '${id}', true)"><button class="btn secondary" onclick="openExtraLink(this)" title="Ouvrir le lien">🔗</button><button class="btn secondary" onclick="removeExtraLinkRow(this, '${kind}', '${id}')">✕</button>`;
   container.appendChild(row);
+  row.querySelector('.extra-link-input').focus();
   resizeDetailFlipToContent();
 }
-function removeExtraLinkRow(btn){
+function removeExtraLinkRow(btn, kind, id){
   btn.closest('.extra-link-row').remove();
   resizeDetailFlipToContent();
+  if(kind && id) saveExtraInfo(kind, id, true); // la suppression d'un lien s'enregistre immédiatement
 }
 function openExtraLink(btn){
   const input = btn.closest('.extra-link-row').querySelector('.extra-link-input');
@@ -870,9 +873,12 @@ function openExtraLink(btn){
   const finalUrl = /^https?:\/\//i.test(url) ? url : 'https://' + url;
   window.open(finalUrl, '_blank', 'noopener');
 }
-function saveExtraInfo(kind, id){
-  const tag = document.getElementById('extra-tag-input').value.trim();
-  const comment = document.getElementById('extra-comment-input').value.trim();
+function saveExtraInfo(kind, id, silent){
+  const tagEl = document.getElementById('extra-tag-input');
+  const commentEl = document.getElementById('extra-comment-input');
+  if(!tagEl || !commentEl) return; // fiche pas (ou plus) affichée
+  const tag = tagEl.value.trim();
+  const comment = commentEl.value.trim();
   const liens = Array.from(document.querySelectorAll('.extra-link-input'))
     .map(inp => inp.value.trim())
     .filter(v => v.length > 0);
@@ -885,7 +891,6 @@ function saveExtraInfo(kind, id){
     f.liens = liens;
     saveLocalState();
     renderFilms();
-    openFilmDetail(id);
   } else {
     const s = state.series.find(x=>String(x.id)===String(id));
     if(!s) return;
@@ -894,9 +899,8 @@ function saveExtraInfo(kind, id){
     s.liens = liens;
     saveLocalState();
     renderSeries();
-    renderSerieDetailModal();
   }
-  showToast('Infos enregistrées', 'success');
+  if(!silent) showToast('Infos enregistrées', 'success');
 }
 
 function openFilmDetail(id){
