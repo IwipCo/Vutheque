@@ -294,7 +294,7 @@
         <option value="annee_asc">Année (ancien d'abord)</option>
         <option value="titre">Titre (A-Z)</option>
         <option value="realisateur">Réalisateur (A-Z)</option>
-        <option value="priorite_desc">Priorité (la plus haute d'abord)</option>
+        <option value="priorite_desc" selected>Priorité (la plus haute d'abord)</option>
         <option value="recommande_par">Recommandé par (A-Z)</option>
       </select>
       <div class="spacer"></div>
@@ -324,7 +324,7 @@
         <option value="annee_asc">Année (ancien d'abord)</option>
         <option value="titre">Titre (A-Z)</option>
         <option value="realisateur">Créateur (A-Z)</option>
-        <option value="priorite_desc">Priorité (la plus haute d'abord)</option>
+        <option value="priorite_desc" selected>Priorité (la plus haute d'abord)</option>
         <option value="recommande_par">Recommandé par (A-Z)</option>
       </select>
       <div class="spacer"></div>
@@ -340,7 +340,13 @@
   <!-- DASHBOARD -->
   <section class="view" id="view-dashboard">
     <div class="stat-cards" id="stat-cards"></div>
-    <h3>Épisodes non vus par série</h3>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <h3 style="margin:0;">Épisodes non vus par série</h3>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer;">
+        <input type="checkbox" id="dash-include-finished" style="width:auto;" onchange="renderDashboard()">
+        Inclure les séries terminées / vues
+      </label>
+    </div>
     <div id="dash-chart"></div>
   </section>
 
@@ -373,7 +379,13 @@
     </div>
     <div class="settings-note" style="margin-bottom:20px;">Version de l'application : <strong id="app-version-settings"></strong></div>
 
-    <h3>Clé API TMDB</h3>
+    <h3>Affichage</h3>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+      <input type="checkbox" id="cfg-show-recommender" style="width:auto;">
+      Afficher qui recommande sur les cartes et dans les listes
+    </label>
+
+    <h3 style="margin-top:24px;">Clé API TMDB</h3>
     <label class="field">Clé API TMDB (v3)</label>
     <input type="text" id="cfg-tmdb-key" style="width:100%;max-width:420px;" placeholder="Colle ta clé ici">
     <div class="settings-note">Gratuite sur themoviedb.org → Paramètres → API.</div>
@@ -488,7 +500,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.19';
+const APP_VERSION = '0.20';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -540,8 +552,11 @@ function saveSettings(){
     gh_path: document.getElementById('cfg-gh-path').value.trim() || 'data.json',
     gh_token: document.getElementById('cfg-gh-token').value.trim(),
     auto_save: document.getElementById('cfg-auto-save').checked,
+    show_recommender: document.getElementById('cfg-show-recommender').checked,
   };
   setCfg(cfg);
+  renderFilms();
+  renderSeries();
   showToast('Paramètres enregistrés', 'success');
 }
 function loadSettingsIntoForm(){
@@ -554,6 +569,7 @@ function loadSettingsIntoForm(){
   document.getElementById('cfg-gh-path').value = cfg.gh_path || 'data.json';
   document.getElementById('cfg-gh-token').value = cfg.gh_token || '';
   document.getElementById('cfg-auto-save').checked = !!cfg.auto_save;
+  document.getElementById('cfg-show-recommender').checked = !!cfg.show_recommender;
 }
 
 /* ---- Export / import / lien de configuration ---- */
@@ -703,6 +719,7 @@ function sortList(list, sortValue, kind){
 function renderFilms(){
   const filter = document.getElementById('films-filter').value;
   const sortValue = document.getElementById('films-sort').value;
+  const showRecommender = !!getCfg().show_recommender;
   let list = state.films.slice();
   if(filter === 'watched') list = list.filter(f=>f.vu);
   if(filter === 'unwatched') list = list.filter(f=>!f.vu);
@@ -718,30 +735,36 @@ function renderFilms(){
     c.innerHTML = '<div class="grid">' + list.map(f=>`
       <div class="card" onclick="openFilmDetailFromCard(this, '${f.id}')">
         <span class="badge ${f.vu?'watched':'unwatched'}">${f.vu?'Vu':'Non vu'}</span>
-        ${(f.commentaire || f.recommande_par || (f.liens && f.liens.length)) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(f.recommande_par ? 'Recommandé par ' + f.recommande_par : (f.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
+        ${hasExtraInfo(f) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(f.recommande_par ? 'Recommandé par ' + f.recommande_par : (f.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
         ${f.affiche_url ? `<img src="${f.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(f.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(f.titre)}</div>
           <div class="year">${f.annee || ''}</div>
           ${starsDisplay(f.priorite)}
+          ${showRecommender && f.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(f.recommande_par)}</div>` : ''}
           <button class="btn ${f.vu?'secondary':''}" style="width:100%;margin-top:6px;padding:5px 0;font-size:12px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button>
         </div>
       </div>
     `).join('') + '</div>';
   } else {
-    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Année</th><th>Réalisateur</th><th>Statut</th><th></th></tr></thead><tbody>
+    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Année</th><th>Réalisateur</th>${showRecommender?'<th>Recommandé par</th>':''}<th>Statut</th><th></th></tr></thead><tbody>
       ${list.map(f=>`
         <tr onclick="openFilmDetail('${f.id}')">
           <td>${f.affiche_url ? `<img class="list-poster" src="${f.affiche_url}">` : ''}</td>
           <td>${escapeHtml(f.titre)}</td>
           <td>${f.annee||''}</td>
           <td>${escapeHtml(f.realisateur||'')}</td>
+          ${showRecommender?`<td>${escapeHtml(f.recommande_par||'')}</td>`:''}
           <td>${f.vu ? '✅ Vu' : '⬜ Non vu'}</td>
           <td><button class="btn ${f.vu?'secondary':''}" style="font-size:12px;padding:5px 10px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button></td>
         </tr>
       `).join('')}
     </tbody></table>`;
   }
+}
+
+function hasExtraInfo(item){
+  return !!(( item.commentaire && item.commentaire.trim()) || (item.recommande_par && item.recommande_par.trim()) || (item.liens && item.liens.length));
 }
 
 function getKnownTags(){
@@ -849,7 +872,7 @@ function openExtraLink(btn){
 }
 function saveExtraInfo(kind, id){
   const tag = document.getElementById('extra-tag-input').value.trim();
-  const comment = document.getElementById('extra-comment-input').value;
+  const comment = document.getElementById('extra-comment-input').value.trim();
   const liens = Array.from(document.querySelectorAll('.extra-link-input'))
     .map(inp => inp.value.trim())
     .filter(v => v.length > 0);
@@ -954,9 +977,39 @@ function getFirstUnwatchedEpisode(serie){
   return null;
 }
 
+// Durée d'un épisode en minutes : sa propre durée si connue, sinon la durée moyenne
+// de la série, sinon une estimation générique de 45 min.
+function getEpisodeDuration(ep, serie){
+  return ep.duree || serie.duree_moyenne_ep || 45;
+}
+// Somme des durées (en minutes) des épisodes non vus et déjà diffusés d'une série.
+function unwatchedDurationMinutes(serie){
+  let total = 0;
+  (serie.saisons||[]).forEach(s=> s.episodes.forEach(e=>{
+    if(!e.vu && isEpisodeReleased(e)) total += getEpisodeDuration(e, serie);
+  }));
+  return total;
+}
+// Formate une durée en minutes en texte lisible (min / h / j / mois).
+function formatDuration(totalMinutes){
+  totalMinutes = Math.round(totalMinutes);
+  if(totalMinutes <= 0) return '0 min';
+  if(totalMinutes < 60) return totalMinutes + ' min';
+  const totalHours = Math.floor(totalMinutes/60);
+  const remMin = totalMinutes % 60;
+  if(totalHours < 24) return totalHours + 'h' + (remMin ? String(remMin).padStart(2,'0') : '');
+  const totalDays = Math.floor(totalHours/24);
+  const remHours = totalHours % 24;
+  if(totalDays < 30) return totalDays + 'j' + (remHours ? ' ' + remHours + 'h' : '');
+  const totalMonths = Math.floor(totalDays/30);
+  const remDays = totalDays % 30;
+  return totalMonths + ' mois' + (remDays ? ' ' + remDays + 'j' : '');
+}
+
 function renderSeries(){
   const filter = document.getElementById('series-filter').value;
   const sortValue = document.getElementById('series-sort').value;
+  const showRecommender = !!getCfg().show_recommender;
   let list = state.series.slice();
   if(filter === 'stopped'){
     list = list.filter(s=>s.suivie === false);
@@ -981,6 +1034,7 @@ function renderSeries(){
         ${s.affiche_url ? `<img class="list-poster" src="${s.affiche_url}">` : ''}
         <span class="ep-title" style="cursor:pointer;" onclick="openSerieDetail('${s.id}')">
           <strong>${escapeHtml(s.titre)}</strong> — S${next.saison} E${next.episode.numero} · ${escapeHtml(next.episode.titre||'')}
+          ${showRecommender && s.recommande_par ? `<span style="font-size:11px;color:var(--accent);"> · 👤 ${escapeHtml(s.recommande_par)}</span>` : ''}
         </span>
         <span class="ep-date">${next.episode.date_diffusion||''}</span>
         <button class="btn" onclick="markEpisodeWatchedQuick(this, '${s.id}', ${next.saison}, ${next.episode.numero})">✓ Vu</button>
@@ -1003,23 +1057,25 @@ function renderSeries(){
       return `
       <div class="card" onclick="openSerieDetailFromCard(this, '${s.id}')">
         <span class="badge ${badgeClass}">${badgeText}</span>
-        ${(s.commentaire || s.recommande_par || (s.liens && s.liens.length)) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(s.recommande_par ? 'Recommandé par ' + s.recommande_par : (s.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
+        ${hasExtraInfo(s) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(s.recommande_par ? 'Recommandé par ' + s.recommande_par : (s.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
         ${s.affiche_url ? `<img src="${s.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(s.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(s.titre)}</div>
           <div class="year">${totalCount(s)} épisodes</div>
           ${starsDisplay(s.priorite)}
+          ${showRecommender && s.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(s.recommande_par)}</div>` : ''}
         </div>
       </div>`;
     }).join('') + '</div>';
   } else {
-    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Épisodes</th><th>Non vus</th><th>Statut</th></tr></thead><tbody>
+    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Épisodes</th><th>Non vus</th>${showRecommender?'<th>Recommandé par</th>':''}<th>Statut</th></tr></thead><tbody>
       ${list.map(s=>`
         <tr onclick="openSerieDetail('${s.id}')">
           <td>${s.affiche_url ? `<img class="list-poster" src="${s.affiche_url}">` : ''}</td>
           <td>${escapeHtml(s.titre)}</td>
           <td>${totalCount(s)}</td>
           <td>${unwatchedCount(s)}</td>
+          ${showRecommender?`<td>${escapeHtml(s.recommande_par||'')}</td>`:''}
           <td>${s.suivie === false ? '⏸ Arrêtée' : '✅ Suivie'}</td>
         </tr>
       `).join('')}
@@ -1152,22 +1208,25 @@ function renderDashboard(){
   const totalFilms = state.films.length;
   const filmsWatched = state.films.filter(f=>f.vu).length;
   const totalSeries = state.series.length;
-  let totalEp=0, unwEp=0;
-  state.series.forEach(s=>{ totalEp+=totalCount(s); unwEp+=unwatchedCount(s); });
+  let totalEp=0, unwEp=0, unwMinutes=0;
+  state.series.forEach(s=>{ totalEp+=totalCount(s); unwEp+=unwatchedCount(s); unwMinutes+=unwatchedDurationMinutes(s); });
 
   document.getElementById('stat-cards').innerHTML = `
     <div class="stat-card"><div class="num">${filmsWatched}/${totalFilms}</div><div class="lbl">Films vus</div></div>
     <div class="stat-card"><div class="num">${totalSeries}</div><div class="lbl">Séries suivies</div></div>
     <div class="stat-card"><div class="num">${totalEp - unwEp}/${totalEp}</div><div class="lbl">Épisodes vus</div></div>
     <div class="stat-card"><div class="num">${unwEp}</div><div class="lbl">Épisodes à voir</div></div>
+    <div class="stat-card"><div class="num">${formatDuration(unwMinutes)}</div><div class="lbl">Temps restant estimé</div></div>
   `;
 
-  const rows = state.series
-    .map(s=>({titre:s.titre, id:s.id, unw: unwatchedCount(s)}))
-    .filter(r=>r.unw>0)
-    .sort((a,b)=>b.unw-a.unw);
+  const includeFinished = document.getElementById('dash-include-finished')?.checked;
+  let rows = state.series
+    .filter(s => s.suivie !== false)
+    .map(s => ({ titre: s.titre, id: s.id, unw: unwatchedCount(s), minutes: unwatchedDurationMinutes(s) }));
+  if(!includeFinished) rows = rows.filter(r => r.unw > 0);
+  rows.sort((a,b) => b.unw - a.unw);
 
-  const max = rows.length ? rows[0].unw : 1;
+  const max = rows.length ? Math.max(1, rows[0].unw) : 1;
   const chart = document.getElementById('dash-chart');
   if(rows.length===0){
     chart.innerHTML = '<div class="empty-state">Tout est à jour 🎉</div>';
@@ -1176,7 +1235,7 @@ function renderDashboard(){
   chart.innerHTML = rows.map(r=>`
     <div class="dash-row" onclick="openSerieDetail('${r.id}')">
       <div class="label">${escapeHtml(r.titre)}</div>
-      <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(6,(r.unw/max)*100)}%">${r.unw}</div></div>
+      <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(r.unw>0?6:2,(r.unw/max)*100)}%">${r.unw > 0 ? r.unw + (r.minutes ? ' · ' + formatDuration(r.minutes) : '') : '✓'}</div></div>
     </div>
   `).join('');
 }
@@ -1382,11 +1441,15 @@ async function addFromTmdb(tmdbId){
             numero: ep.episode_number,
             titre: ep.name,
             date_diffusion: ep.air_date,
+            duree: ep.runtime || null,
             vu: false,
             nouveau: false
           }))
         });
       }
+      const dureeMoyenne = (d.episode_run_time && d.episode_run_time.length)
+        ? Math.round(d.episode_run_time.reduce((a,b)=>a+b,0) / d.episode_run_time.length)
+        : null;
       const serie = {
         id: 's'+d.id,
         tmdb_id: d.id,
@@ -1400,6 +1463,7 @@ async function addFromTmdb(tmdbId){
         casting: (d.credits?.cast||[]).slice(0,10).map(c=>c.name),
         date_ajout: new Date().toISOString(),
         suivie: true,
+        duree_moyenne_ep: dureeMoyenne,
         saisons
       };
       state.series.push(serie);
@@ -1420,6 +1484,9 @@ async function fetchSeriesUpdates(s, cfg){
   const res = await fetch(url);
   if(!res.ok) throw new Error('Erreur TMDB (' + res.status + ') pour "' + s.titre + '"');
   const d = await res.json();
+  if(d.episode_run_time && d.episode_run_time.length){
+    s.duree_moyenne_ep = Math.round(d.episode_run_time.reduce((a,b)=>a+b,0) / d.episode_run_time.length);
+  }
   let newCount = 0;
   for(const season of (d.seasons||[])){
     if(season.season_number === 0) continue;
@@ -1438,10 +1505,13 @@ async function fetchSeriesUpdates(s, cfg){
           numero: ep.episode_number,
           titre: ep.name,
           date_diffusion: ep.air_date,
+          duree: ep.runtime || null,
           vu: false,
           nouveau: true
         });
         newCount++;
+      } else if(exists.duree == null && ep.runtime){
+        exists.duree = ep.runtime; // complète la durée si elle manquait
       }
     });
     localSeason.episodes.sort((a,b)=>a.numero-b.numero);
@@ -1547,6 +1617,9 @@ async function refreshAllMetadata(){
       s.genres = (d.genres||[]).map(g=>g.name);
       s.casting = (d.credits?.cast||[]).slice(0,10).map(c=>c.name);
       s.imdb_id = d.external_ids?.imdb_id || s.imdb_id;
+      if(d.episode_run_time && d.episode_run_time.length){
+        s.duree_moyenne_ep = Math.round(d.episode_run_time.reduce((a,b)=>a+b,0) / d.episode_run_time.length);
+      }
       if(s.suivie === undefined) s.suivie = true;
       updated++;
     }catch(err){
