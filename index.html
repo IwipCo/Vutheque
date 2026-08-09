@@ -500,7 +500,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.21';
+const APP_VERSION = '0.22';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -706,7 +706,7 @@ function sortList(list, sortValue, kind){
     case 'realisateur':
       list2.sort((a,b)=>getPerson(a).localeCompare(getPerson(b), 'fr', {sensitivity:'base'})); break;
     case 'priorite_desc':
-      list2.sort((a,b)=>(b.priorite||0)-(a.priorite||0)); break;
+      list2.sort((a,b)=>PRIORITY_LEVELS[getPriority(b)].rank - PRIORITY_LEVELS[getPriority(a)].rank); break;
     case 'recommande_par':
       list2.sort((a,b)=>(a.recommande_par||'').localeCompare(b.recommande_par||'', 'fr', {sensitivity:'base'})); break;
     case 'date_ajout_desc':
@@ -740,20 +740,21 @@ function renderFilms(){
         <div class="info">
           <div class="title">${escapeHtml(f.titre)}</div>
           <div class="year">${f.annee || ''}</div>
-          ${starsDisplay(f.priorite)}
+          ${priorityBadgeSmall(f)}
           ${showRecommender && f.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(f.recommande_par)}</div>` : ''}
           <button class="btn ${f.vu?'secondary':''}" style="width:100%;margin-top:6px;padding:5px 0;font-size:12px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button>
         </div>
       </div>
     `).join('') + '</div>';
   } else {
-    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Année</th><th>Réalisateur</th>${showRecommender?'<th>Recommandé par</th>':''}<th>Statut</th><th></th></tr></thead><tbody>
+    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Année</th><th>Réalisateur</th><th>Priorité</th>${showRecommender?'<th>Recommandé par</th>':''}<th>Statut</th><th></th></tr></thead><tbody>
       ${list.map(f=>`
         <tr onclick="openFilmDetail('${f.id}')">
           <td>${f.affiche_url ? `<img class="list-poster" src="${f.affiche_url}">` : ''}</td>
           <td>${escapeHtml(f.titre)}</td>
           <td>${f.annee||''}</td>
           <td>${escapeHtml(f.realisateur||'')}</td>
+          <td>${priorityBadgeSmall(f)}</td>
           ${showRecommender?`<td>${escapeHtml(f.recommande_par||'')}</td>`:''}
           <td>${f.vu ? '✅ Vu' : '⬜ Non vu'}</td>
           <td><button class="btn ${f.vu?'secondary':''}" style="font-size:12px;padding:5px 10px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button></td>
@@ -792,31 +793,57 @@ function captureExtraDraft(fallbackItem, key){
   });
 }
 
+const PRIORITY_LEVELS = {
+  low:    { label: 'Low',    symbol: '🔵', rank: 1 },
+  normal: { label: 'Normal', symbol: '⚪', rank: 2 },
+  high:   { label: 'High',   symbol: '🟠', rank: 3 },
+  urgent: { label: 'Urgent', symbol: '🔴', rank: 4 },
+};
+// Normalise la priorité d'un item : gère l'absence de valeur (par défaut Normal) et
+// les anciennes valeurs numériques (1-5) issues du précédent système à étoiles.
+function getPriority(item){
+  const p = item.priorite;
+  if(PRIORITY_LEVELS[p]) return p;
+  if(typeof p === 'number'){
+    if(p >= 5) return 'urgent';
+    if(p === 4) return 'high';
+    if(p === 3) return 'normal';
+    if(p >= 1) return 'low';
+  }
+  return 'normal';
+}
+function priorityBadgeSmall(item){
+  const level = getPriority(item);
+  const lvl = PRIORITY_LEVELS[level];
+  return `<span title="Priorité : ${lvl.label}" style="font-size:13px;">${lvl.symbol} ${lvl.label}</span>`;
+}
 function renderPriorityWidget(item, kind){
-  const current = item.priorite || 0;
-  const stars = [1,2,3,4,5].map(n => `
-    <span style="cursor:pointer;font-size:22px;color:${n<=current ? 'var(--warn)' : 'var(--border)'};" onclick="setPriority('${kind}', '${item.id}', ${n})" title="Priorité ${n}/5">★</span>
-  `).join('');
+  const current = getPriority(item);
+  const buttons = Object.keys(PRIORITY_LEVELS).map(key=>{
+    const lvl = PRIORITY_LEVELS[key];
+    const active = key === current;
+    return `<button class="btn ${active?'':'secondary'}" style="padding:5px 10px;font-size:12px;margin-right:6px;margin-bottom:4px;" onclick="setPriority('${kind}', '${item.id}', '${key}')">${lvl.symbol} ${lvl.label}</button>`;
+  }).join('');
   return `
     <div style="margin:12px 0;">
-      <label class="field" style="margin-bottom:2px;">Priorité (optionnel)</label>
-      <span>${stars}</span>
-      ${current ? `<button class="btn secondary" style="margin-left:8px;padding:4px 8px;font-size:12px;" onclick="setPriority('${kind}', '${item.id}', 0)">Effacer</button>` : ''}
+      <label class="field" style="margin-bottom:4px;">Priorité</label>
+      <div>${buttons}</div>
     </div>
   `;
 }
 function setPriority(kind, id, value){
+  if(!PRIORITY_LEVELS[value]) return;
   if(kind === 'film'){
     const f = state.films.find(x=>String(x.id)===String(id));
     if(!f) return;
-    f.priorite = value || null;
+    f.priorite = value;
     saveLocalState();
     renderFilms();
     openFilmDetail(id);
   } else {
     const s = state.series.find(x=>String(x.id)===String(id));
     if(!s) return;
-    s.priorite = value || null;
+    s.priorite = value;
     saveLocalState();
     renderSeries();
     renderSerieDetailModal();
@@ -1066,19 +1093,20 @@ function renderSeries(){
         <div class="info">
           <div class="title">${escapeHtml(s.titre)}</div>
           <div class="year">${totalCount(s)} épisodes</div>
-          ${starsDisplay(s.priorite)}
+          ${priorityBadgeSmall(s)}
           ${showRecommender && s.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(s.recommande_par)}</div>` : ''}
         </div>
       </div>`;
     }).join('') + '</div>';
   } else {
-    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Épisodes</th><th>Non vus</th>${showRecommender?'<th>Recommandé par</th>':''}<th>Statut</th></tr></thead><tbody>
+    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Épisodes</th><th>Non vus</th><th>Priorité</th>${showRecommender?'<th>Recommandé par</th>':''}<th>Statut</th></tr></thead><tbody>
       ${list.map(s=>`
         <tr onclick="openSerieDetail('${s.id}')">
           <td>${s.affiche_url ? `<img class="list-poster" src="${s.affiche_url}">` : ''}</td>
           <td>${escapeHtml(s.titre)}</td>
           <td>${totalCount(s)}</td>
           <td>${unwatchedCount(s)}</td>
+          <td>${priorityBadgeSmall(s)}</td>
           ${showRecommender?`<td>${escapeHtml(s.recommande_par||'')}</td>`:''}
           <td>${s.suivie === false ? '⏸ Arrêtée' : '✅ Suivie'}</td>
         </tr>
@@ -1414,6 +1442,7 @@ async function addFromTmdb(tmdbId){
         genres: (d.genres||[]).map(g=>g.name),
         casting: (d.credits?.cast||[]).slice(0,10).map(c=>c.name),
         vu: false,
+        priorite: 'normal',
         date_ajout: new Date().toISOString()
       };
       if(state.films.find(f=>f.tmdb_id===d.id)){
@@ -1467,6 +1496,7 @@ async function addFromTmdb(tmdbId){
         casting: (d.credits?.cast||[]).slice(0,10).map(c=>c.name),
         date_ajout: new Date().toISOString(),
         suivie: true,
+        priorite: 'normal',
         duree_moyenne_ep: dureeMoyenne,
         saisons
       };
@@ -2246,10 +2276,6 @@ async function ghLoad(){
 /* =========================================================
    UTILS
    ========================================================= */
-function starsDisplay(n){
-  if(!n) return '';
-  return `<div style="color:var(--warn);font-size:12px;letter-spacing:1px;margin-top:2px;">${'★'.repeat(n)}${'☆'.repeat(5-n)}</div>`;
-}
 function escapeHtml(str){
   if(str===null || str===undefined) return '';
   return String(str)
