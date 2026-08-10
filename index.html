@@ -500,7 +500,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.23';
+const APP_VERSION = '0.25';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -738,7 +738,6 @@ function renderFilms(){
           ${priorityIconOnly(f)}
           <span class="badge ${f.vu?'watched':'unwatched'}" style="position:static;">${f.vu?'Vu':'Non vu'}</span>
         </div>
-        ${hasExtraInfo(f) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(f.recommande_par ? 'Recommandé par ' + f.recommande_par : (f.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
         ${f.affiche_url ? `<img src="${f.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(f.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(f.titre)}</div>
@@ -796,10 +795,10 @@ function captureExtraDraft(fallbackItem, key){
 }
 
 const PRIORITY_LEVELS = {
-  low:    { label: 'Low',    symbol: '🔵', rank: 1 },
-  normal: { label: 'Normal', symbol: '⚪', rank: 2 },
-  high:   { label: 'High',   symbol: '🟠', rank: 3 },
-  urgent: { label: 'Urgent', symbol: '🔴', rank: 4 },
+  low:    { label: 'Low',    symbol: '↓', rank: 1, color: 'var(--accent)' },
+  normal: { label: 'Normal', symbol: '→', rank: 2, color: 'var(--muted)' },
+  high:   { label: 'High',   symbol: '↑', rank: 3, color: 'var(--warn)' },
+  urgent: { label: 'Urgent', symbol: '⇈', rank: 4, color: 'var(--danger)' },
 };
 // Normalise la priorité d'un item : gère l'absence de valeur (par défaut Normal) et
 // les anciennes valeurs numériques (1-5) issues du précédent système à étoiles.
@@ -817,19 +816,19 @@ function getPriority(item){
 function priorityBadgeSmall(item){
   const level = getPriority(item);
   const lvl = PRIORITY_LEVELS[level];
-  return `<span title="Priorité : ${lvl.label}" style="font-size:13px;">${lvl.symbol} ${lvl.label}</span>`;
+  return `<span title="Priorité : ${lvl.label}" style="font-size:13px;color:${lvl.color};font-weight:700;">${lvl.symbol} ${lvl.label}</span>`;
 }
 function priorityIconOnly(item){
   const level = getPriority(item);
   const lvl = PRIORITY_LEVELS[level];
-  return `<span class="badge" style="position:static;background:rgba(0,0,0,.7);" title="Priorité : ${lvl.label}">${lvl.symbol}</span>`;
+  return `<span class="badge" style="position:static;background:rgba(0,0,0,.7);color:${lvl.color};font-size:14px;" title="Priorité : ${lvl.label}">${lvl.symbol}</span>`;
 }
 function renderPriorityWidget(item, kind){
   const current = getPriority(item);
   const buttons = Object.keys(PRIORITY_LEVELS).map(key=>{
     const lvl = PRIORITY_LEVELS[key];
     const active = key === current;
-    return `<button class="btn ${active?'':'secondary'}" style="padding:5px 10px;font-size:12px;margin-right:6px;margin-bottom:4px;" onclick="setPriority('${kind}', '${item.id}', '${key}')">${lvl.symbol} ${lvl.label}</button>`;
+    return `<button class="btn ${active?'':'secondary'}" style="padding:5px 10px;font-size:12px;margin-right:6px;margin-bottom:4px;${active?'':'color:'+lvl.color+';'}" onclick="setPriority('${kind}', '${item.id}', '${key}')"><span style="color:${active?'#fff':lvl.color};font-weight:700;">${lvl.symbol}</span> ${lvl.label}</button>`;
   }).join('');
   return `
     <div style="margin:12px 0;">
@@ -1112,7 +1111,6 @@ function renderSeries(){
           ${priorityIconOnly(s)}
           <span class="badge ${badgeClass}" style="position:static;">${badgeText}</span>
         </div>
-        ${hasExtraInfo(s) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(s.recommande_par ? 'Recommandé par ' + s.recommande_par : (s.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
         ${s.affiche_url ? `<img src="${s.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(s.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(s.titre)}</div>
