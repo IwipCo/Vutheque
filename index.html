@@ -124,14 +124,18 @@
     cursor:pointer;
     transition:transform .1s ease, border-color .1s ease;
     position:relative;
+    display:flex;
+    flex-direction:column;
+    height:100%;
   }
   .card:hover{transform:translateY(-3px);border-color:var(--accent);}
-  .card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--panel-2);}
+  .card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--panel-2);flex-shrink:0;}
   .card .no-poster{
     width:100%;aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;
-    background:var(--panel-2);color:var(--muted);font-size:12px;text-align:center;padding:8px;
+    background:var(--panel-2);color:var(--muted);font-size:12px;text-align:center;padding:8px;flex-shrink:0;
   }
-  .card .info{padding:8px 10px;}
+  .card .info{padding:8px 10px;display:flex;flex-direction:column;flex:1;}
+  .card .info button{margin-top:auto;}
   .card .title{font-size:13px;font-weight:600;line-height:1.3;margin-bottom:2px;}
   .card .year{font-size:12px;color:var(--muted);}
   .badge{
@@ -340,14 +344,10 @@
   <!-- DASHBOARD -->
   <section class="view" id="view-dashboard">
     <div class="stat-cards" id="stat-cards"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-      <h3 style="margin:0;">Épisodes non vus par série</h3>
-      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);cursor:pointer;">
-        <input type="checkbox" id="dash-include-finished" style="width:auto;" onchange="renderDashboard()">
-        Inclure les séries terminées / vues
-      </label>
-    </div>
+    <h3>Épisodes non vus par série</h3>
     <div id="dash-chart"></div>
+    <h3 style="margin-top:28px;">Épisodes vus par série</h3>
+    <div id="dash-chart-watched"></div>
   </section>
 
   <!-- DECOUVRIR -->
@@ -500,7 +500,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.22';
+const APP_VERSION = '0.23';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -734,13 +734,15 @@ function renderFilms(){
   if(filmsView === 'card'){
     c.innerHTML = '<div class="grid">' + list.map(f=>`
       <div class="card" onclick="openFilmDetailFromCard(this, '${f.id}')">
-        <span class="badge ${f.vu?'watched':'unwatched'}">${f.vu?'Vu':'Non vu'}</span>
+        <div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;align-items:center;z-index:1;">
+          ${priorityIconOnly(f)}
+          <span class="badge ${f.vu?'watched':'unwatched'}" style="position:static;">${f.vu?'Vu':'Non vu'}</span>
+        </div>
         ${hasExtraInfo(f) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(f.recommande_par ? 'Recommandé par ' + f.recommande_par : (f.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
         ${f.affiche_url ? `<img src="${f.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(f.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(f.titre)}</div>
           <div class="year">${f.annee || ''}</div>
-          ${priorityBadgeSmall(f)}
           ${showRecommender && f.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(f.recommande_par)}</div>` : ''}
           <button class="btn ${f.vu?'secondary':''}" style="width:100%;margin-top:6px;padding:5px 0;font-size:12px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button>
         </div>
@@ -817,6 +819,11 @@ function priorityBadgeSmall(item){
   const lvl = PRIORITY_LEVELS[level];
   return `<span title="Priorité : ${lvl.label}" style="font-size:13px;">${lvl.symbol} ${lvl.label}</span>`;
 }
+function priorityIconOnly(item){
+  const level = getPriority(item);
+  const lvl = PRIORITY_LEVELS[level];
+  return `<span class="badge" style="position:static;background:rgba(0,0,0,.7);" title="Priorité : ${lvl.label}">${lvl.symbol}</span>`;
+}
 function renderPriorityWidget(item, kind){
   const current = getPriority(item);
   const buttons = Object.keys(PRIORITY_LEVELS).map(key=>{
@@ -854,7 +861,7 @@ function renderExtraInfoBlock(item, kind){
   const links = item.liens || [];
   const linksHtml = links.map(l => `
     <div class="extra-link-row" style="display:flex;gap:6px;margin-bottom:6px;">
-      <input type="text" class="extra-link-input" value="${escapeHtml(l)}" style="flex:1;" placeholder="https://..." onblur="saveExtraInfo('${kind}', '${item.id}', true)">
+      <input type="text" class="extra-link-input" value="${escapeHtml(l)}" style="flex:1;" placeholder="https://..." onblur="saveExtraInfo('${kind}', '${item.id}', true)" oninput="scheduleExtraInfoAutoSave('${kind}', '${item.id}')">
       <button class="btn secondary" onclick="openExtraLink(this)" title="Ouvrir le lien">🔗</button>
       <button class="btn secondary" onclick="removeExtraLinkRow(this, '${kind}', '${item.id}')">✕</button>
     </div>
@@ -862,9 +869,9 @@ function renderExtraInfoBlock(item, kind){
   const tagsDatalist = getKnownTags().map(t => `<option value="${escapeHtml(t)}">`).join('');
   return `
     <h3 style="margin-top:20px;">Infos complémentaires</h3>
-    <div class="settings-note" style="margin-top:0;">Ces champs s'enregistrent automatiquement dès que tu cliques ailleurs (pas besoin d'un bouton).</div>
+    <div class="settings-note" style="margin-top:0;">Ces champs s'enregistrent automatiquement (pas besoin d'un bouton).</div>
     <label class="field">Recommandé par</label>
-    <input type="text" id="extra-tag-input" list="extra-known-tags" style="width:100%;max-width:280px;" value="${escapeHtml(item.recommande_par||'')}" placeholder="ex: Alice" onblur="saveExtraInfo('${kind}', '${item.id}', true)">
+    <input type="text" id="extra-tag-input" list="extra-known-tags" style="width:100%;max-width:280px;" value="${escapeHtml(item.recommande_par||'')}" placeholder="ex: Alice" onblur="saveExtraInfo('${kind}', '${item.id}', true)" oninput="scheduleExtraInfoAutoSave('${kind}', '${item.id}')">
     <datalist id="extra-known-tags">${tagsDatalist}</datalist>
 
     <label class="field">Liens (site, article, bande-annonce...)</label>
@@ -872,10 +879,24 @@ function renderExtraInfoBlock(item, kind){
     <button class="btn secondary" onclick="addExtraLinkRow('${kind}', '${item.id}')">+ Ajouter un lien</button>
 
     <label class="field">Commentaire</label>
-    <textarea id="extra-comment-input" rows="3" style="width:100%;max-width:420px;resize:vertical;" onblur="saveExtraInfo('${kind}', '${item.id}', true)">${escapeHtml(item.commentaire||'')}</textarea><br>
+    <textarea id="extra-comment-input" rows="3" style="width:100%;max-width:420px;resize:vertical;" onblur="saveExtraInfo('${kind}', '${item.id}', true)" oninput="scheduleExtraInfoAutoSave('${kind}', '${item.id}')">${escapeHtml(item.commentaire||'')}</textarea><br>
 
     <button class="btn secondary" style="margin-top:10px;" onclick="saveExtraInfo('${kind}', '${item.id}')">💾 Enregistrer maintenant</button>
   `;
+}
+let extraInfoAutoSaveTimer = null;
+function scheduleExtraInfoAutoSave(kind, id){
+  clearTimeout(extraInfoAutoSaveTimer);
+  extraInfoAutoSaveTimer = setTimeout(()=> saveExtraInfo(kind, id, true), 500);
+}
+function flushExtraInfoIfPending(){
+  // Force l'enregistrement immédiat des infos complémentaires si la fiche est affichée,
+  // pour ne rien perdre à la fermeture même si le blur n'a pas eu le temps de se déclencher
+  // (cas fréquent sur mobile/iOS quand on tape rapidement puis referme).
+  clearTimeout(extraInfoAutoSaveTimer);
+  if(document.getElementById('extra-comment-input') && openDetailType && openDetailId){
+    saveExtraInfo(openDetailType, openDetailId, true);
+  }
 }
 function addExtraLinkRow(kind, id){
   const container = document.getElementById('extra-links-list');
@@ -883,7 +904,7 @@ function addExtraLinkRow(kind, id){
   const row = document.createElement('div');
   row.className = 'extra-link-row';
   row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
-  row.innerHTML = `<input type="text" class="extra-link-input" style="flex:1;" placeholder="https://..." onblur="saveExtraInfo('${kind}', '${id}', true)"><button class="btn secondary" onclick="openExtraLink(this)" title="Ouvrir le lien">🔗</button><button class="btn secondary" onclick="removeExtraLinkRow(this, '${kind}', '${id}')">✕</button>`;
+  row.innerHTML = `<input type="text" class="extra-link-input" style="flex:1;" placeholder="https://..." onblur="saveExtraInfo('${kind}', '${id}', true)" oninput="scheduleExtraInfoAutoSave('${kind}', '${id}')"><button class="btn secondary" onclick="openExtraLink(this)" title="Ouvrir le lien">🔗</button><button class="btn secondary" onclick="removeExtraLinkRow(this, '${kind}', '${id}')">✕</button>`;
   container.appendChild(row);
   row.querySelector('.extra-link-input').focus();
   resizeDetailFlipToContent();
@@ -1087,13 +1108,15 @@ function renderSeries(){
       const badgeText = stopped ? '⏸ Arrêtée' : (unw>0? unw+' à voir' : 'À jour');
       return `
       <div class="card" onclick="openSerieDetailFromCard(this, '${s.id}')">
-        <span class="badge ${badgeClass}">${badgeText}</span>
+        <div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;align-items:center;z-index:1;">
+          ${priorityIconOnly(s)}
+          <span class="badge ${badgeClass}" style="position:static;">${badgeText}</span>
+        </div>
         ${hasExtraInfo(s) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(s.recommande_par ? 'Recommandé par ' + s.recommande_par : (s.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
         ${s.affiche_url ? `<img src="${s.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(s.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(s.titre)}</div>
           <div class="year">${totalCount(s)} épisodes</div>
-          ${priorityBadgeSmall(s)}
           ${showRecommender && s.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(s.recommande_par)}</div>` : ''}
         </div>
       </div>`;
@@ -1236,6 +1259,12 @@ function toggleSerieTracking(id){
 /* =========================================================
    DASHBOARD
    ========================================================= */
+function watchedCount(serie){
+  let n=0;
+  (serie.saisons||[]).forEach(s=> s.episodes.forEach(e=>{ if(e.vu) n++; }));
+  return n;
+}
+
 function renderDashboard(){
   const totalFilms = state.films.length;
   const filmsWatched = state.films.filter(f=>f.vu).length;
@@ -1251,25 +1280,42 @@ function renderDashboard(){
     <div class="stat-card"><div class="num">${formatDuration(unwMinutes)}</div><div class="lbl">Temps restant estimé</div></div>
   `;
 
-  const includeFinished = document.getElementById('dash-include-finished')?.checked;
-  let rows = state.series
+  // Graphique 1 : épisodes non vus
+  const unwRows = state.series
     .filter(s => s.suivie !== false)
-    .map(s => ({ titre: s.titre, id: s.id, unw: unwatchedCount(s), minutes: unwatchedDurationMinutes(s) }));
-  if(!includeFinished) rows = rows.filter(r => r.unw > 0);
-  rows.sort((a,b) => b.unw - a.unw);
-
-  const max = rows.length ? Math.max(1, rows[0].unw) : 1;
+    .map(s => ({ titre: s.titre, id: s.id, count: unwatchedCount(s), minutes: unwatchedDurationMinutes(s) }))
+    .filter(r => r.count > 0)
+    .sort((a,b) => b.count - a.count);
+  const unwMax = unwRows.length ? Math.max(1, unwRows[0].count) : 1;
   const chart = document.getElementById('dash-chart');
-  if(rows.length===0){
+  if(unwRows.length===0){
     chart.innerHTML = '<div class="empty-state">Tout est à jour 🎉</div>';
-    return;
+  } else {
+    chart.innerHTML = unwRows.map(r=>`
+      <div class="dash-row" onclick="openSerieDetail('${r.id}')">
+        <div class="label">${escapeHtml(r.titre)}</div>
+        <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(6,(r.count/unwMax)*100)}%">${r.count}${r.minutes ? ' · ' + formatDuration(r.minutes) : ''}</div></div>
+      </div>
+    `).join('');
   }
-  chart.innerHTML = rows.map(r=>`
-    <div class="dash-row" onclick="openSerieDetail('${r.id}')">
-      <div class="label">${escapeHtml(r.titre)}</div>
-      <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(r.unw>0?6:2,(r.unw/max)*100)}%">${r.unw > 0 ? r.unw + (r.minutes ? ' · ' + formatDuration(r.minutes) : '') : '✓'}</div></div>
-    </div>
-  `).join('');
+
+  // Graphique 2 : épisodes vus
+  const watchedRows = state.series
+    .map(s => ({ titre: s.titre, id: s.id, count: watchedCount(s) }))
+    .filter(r => r.count > 0)
+    .sort((a,b) => b.count - a.count);
+  const watchedMax = watchedRows.length ? Math.max(1, watchedRows[0].count) : 1;
+  const chartWatched = document.getElementById('dash-chart-watched');
+  if(watchedRows.length===0){
+    chartWatched.innerHTML = '<div class="empty-state">Aucun épisode vu pour le moment.</div>';
+  } else {
+    chartWatched.innerHTML = watchedRows.map(r=>`
+      <div class="dash-row" onclick="openSerieDetail('${r.id}')">
+        <div class="label">${escapeHtml(r.titre)}</div>
+        <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(6,(r.count/watchedMax)*100)}%;background:linear-gradient(90deg, var(--accent-2), var(--accent));">${r.count}</div></div>
+      </div>
+    `).join('');
+  }
 }
 
 /* =========================================================
@@ -1292,6 +1338,14 @@ function openAddForCurrentTab(){
   if(view === 'series') openSearchModal('tv');
   else openSearchModal('movie'); // par défaut (films, dashboard, ou paramètres) on propose d'ajouter un film
 }
+
+/* Filet de sécurité : force l'enregistrement des infos complémentaires en cours de
+   frappe si l'app passe en arrière-plan (changement d'app, verrouillage d'écran...),
+   un cas fréquent sur mobile où le clavier ne déclenche pas toujours un blur propre. */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) flushExtraInfoIfPending();
+});
+window.addEventListener('pagehide', flushExtraInfoIfPending);
 
 /* =========================================================
    RACCOURCIS CLAVIER
@@ -1995,6 +2049,7 @@ function resizeDetailFlipToContent(){
 
 function closeDetailFlip(){
   if(!detailFlipOpen) return;
+  flushExtraInfoIfPending();
   const card = document.getElementById('detail-flip-card');
   const inner = document.getElementById('detail-flip-inner');
   const backdrop = document.getElementById('detail-flip-backdrop');
