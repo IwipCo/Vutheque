@@ -501,7 +501,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.26';
+const APP_VERSION = '0.27';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -544,6 +544,7 @@ function setCfg(cfg){
 }
 
 function saveSettings(){
+  const previous = getCfg();
   const cfg = {
     tmdb_key: document.getElementById('cfg-tmdb-key').value.trim(),
     cinema_url: document.getElementById('cfg-cinema-url').value.trim(),
@@ -556,6 +557,11 @@ function saveSettings(){
     show_recommender: document.getElementById('cfg-show-recommender').checked,
   };
   setCfg(cfg);
+  // Si la cible du dépôt/fichier change, l'ancien repère de synchro n'a plus de sens.
+  if(previous.gh_owner !== cfg.gh_owner || previous.gh_repo !== cfg.gh_repo ||
+     previous.gh_branch !== cfg.gh_branch || previous.gh_path !== cfg.gh_path){
+    setLastRemoteSha(null);
+  }
   renderFilms();
   renderSeries();
   showToast('Paramètres enregistrés', 'success');
@@ -2209,6 +2215,7 @@ function resetAll(){
   if(!confirm('Cela efface toutes les données locales (films/séries). Continuer ?')) return;
   state = {films:[], series:[]};
   saveLocalState();
+  setLastRemoteSha(null);
   renderFilms();
   renderSeries();
   showToast('Données réinitialisées', 'success');
@@ -2223,6 +2230,12 @@ function b64_to_utf8(str){
 
 let ghSaveInProgress = false;
 let ghSavePending = false;
+const LS_SYNC_SHA = 'watchlist_last_remote_sha';
+function getLastRemoteSha(){ return localStorage.getItem(LS_SYNC_SHA); }
+function setLastRemoteSha(sha){
+  if(sha) localStorage.setItem(LS_SYNC_SHA, sha);
+  else localStorage.removeItem(LS_SYNC_SHA);
+}
 
 async function ghSave(silent){
   const cfg = getCfg();
@@ -2246,9 +2259,15 @@ async function ghSave(silent){
   if(!silent) showToast('Sauvegarde sur GitHub...', '');
 
   try{
-    await ghSaveAttempt(apiUrl, branch, cfg);
-    document.getElementById('last-save-note').textContent = 'Dernière sauvegarde GitHub : ' + new Date().toLocaleString() + (silent ? ' (auto)' : '');
-    showToast(silent ? 'Sauvegarde automatique effectuée ✅' : 'Sauvegardé sur GitHub ✅', 'success');
+    const result = await ghSaveAttempt(apiUrl, branch, cfg, silent);
+    if(result === 'cancelled'){
+      showToast('Sauvegarde annulée — charge la version distante avant de réessayer', '');
+    } else if(result === 'conflict-skipped'){
+      showToast('⚠️ Sauvegarde auto interrompue : le fichier a changé sur GitHub (autre appareil ?). Sauvegarde manuellement pour résoudre.', 'error');
+    } else {
+      document.getElementById('last-save-note').textContent = 'Dernière sauvegarde GitHub : ' + new Date().toLocaleString() + (silent ? ' (auto)' : '');
+      showToast(silent ? 'Sauvegarde automatique effectuée ✅' : 'Sauvegardé sur GitHub ✅', 'success');
+    }
   }catch(err){
     showToast('Erreur GitHub' + (silent ? ' (auto)' : '') + ' : ' + err.message, 'error');
   }finally{
@@ -2264,7 +2283,13 @@ async function ghSave(silent){
 // entre-temps sur GitHub, depuis un autre onglet/appareil, ou plusieurs modifications
 // rapprochées), on retente jusqu'à 3 fois avec un sha frais et un petit délai aléatoire
 // avant d'abandonner et de remonter une erreur claire.
-async function ghSaveAttempt(apiUrl, branch, cfg){
+//
+// Garde-fou anti-écrasement (option 1) : avant d'écrire, on compare le sha distant
+// actuel à celui qu'on avait vu la dernière fois qu'on a chargé/sauvegardé avec
+// succès. S'ils diffèrent, quelqu'un d'autre (un autre appareil/onglet) a modifié
+// le fichier entre-temps : on demande confirmation (sauvegarde manuelle) ou on
+// abandonne silencieusement (sauvegarde automatique), plutôt que d'écraser sans prévenir.
+async function ghSaveAttempt(apiUrl, branch, cfg, silent){
   const maxAttempts = 3;
   for(let attempt = 1; attempt <= maxAttempts; attempt++){
     let sha = null;
@@ -2283,6 +2308,22 @@ async function ghSaveAttempt(apiUrl, branch, cfg){
       throw new Error('Lecture du fichier échouée (' + getRes.status + ')');
     }
 
+    if(attempt === 1){
+      const known = getLastRemoteSha();
+      if(known && sha && known !== sha){
+        if(silent){
+          return 'conflict-skipped';
+        }
+        const proceed = confirm(
+          "Le fichier sur GitHub a été modifié depuis ta dernière synchronisation sur cet appareil " +
+          "(probablement depuis un autre appareil ou onglet).\n\n" +
+          "Écraser quand même avec la version de cet appareil ?\n\n" +
+          "Annuler pour charger d'abord la version distante (via \"Charger depuis GitHub\")."
+        );
+        if(!proceed) return 'cancelled';
+      }
+    }
+
     const content = utf8_to_b64(JSON.stringify(state, null, 2));
     const putRes = await fetch(apiUrl, {
       method:'PUT',
@@ -2295,7 +2336,11 @@ async function ghSaveAttempt(apiUrl, branch, cfg){
         sha: sha || undefined
       })
     });
-    if(putRes.ok) return;
+    if(putRes.ok){
+      const putData = await putRes.json().catch(()=>({}));
+      setLastRemoteSha(putData?.content?.sha || null);
+      return 'ok';
+    }
 
     if(putRes.status === 409 && attempt < maxAttempts){
       await new Promise(r => setTimeout(r, 250 + Math.random() * 350)); // petit délai avant de retenter avec un sha frais
@@ -2332,6 +2377,7 @@ async function ghLoad(){
     if(!parsed.films || !parsed.series) throw new Error('Format invalide dans le fichier distant');
     state = parsed;
     saveLocalState();
+    setLastRemoteSha(data.sha);
     renderFilms();
     renderSeries();
     showToast('Données chargées depuis GitHub ✅', 'success');
