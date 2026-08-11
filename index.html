@@ -276,6 +276,7 @@
     <button data-view="decouvrir">Découvrir</button>
   </nav>
   <div style="display:flex;gap:6px;">
+    <button class="icon-btn" id="btn-sync-top" onclick="ghSave()" title="Synchroniser sur GitHub">☁️</button>
     <button class="icon-btn" id="btn-settings">⚙️ Paramètres</button>
   </div>
 </header>
@@ -500,7 +501,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.25';
+const APP_VERSION = '0.26';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1920,6 +1921,11 @@ function startCardFlip(cardEl, backHtml){
     card.style.height = targetH + 'px';
     card.querySelector('.flip-inner').classList.add('flipped');
   });
+  // Filet de sécurité pour Safari iOS : "backface-visibility:hidden" est peu fiable
+  // sur les éléments avec "overflow" défini, ce qui peut laisser la face avant
+  // visible en miroir. On la masque explicitement une fois le flip terminé.
+  const front = card.querySelector('.flip-face.front');
+  setTimeout(()=>{ if(front) front.style.visibility = 'hidden'; }, 520);
 
   activeFlip = { card, backdrop, cardEl, rect };
   document.addEventListener('keydown', flipEscHandler);
@@ -1928,6 +1934,8 @@ function startCardFlip(cardEl, backHtml){
 function closeCardFlip(){
   if(!activeFlip) return;
   const { card, backdrop, cardEl, rect } = activeFlip;
+  const front = card.querySelector('.flip-face.front');
+  if(front) front.style.visibility = ''; // on la rend de nouveau visible avant de la faire réapparaître en tournant
   card.style.top = rect.top + 'px';
   card.style.left = rect.left + 'px';
   card.style.width = rect.width + 'px';
@@ -1994,6 +2002,7 @@ function startDetailFlip(sourceEl){
 
   card.style.display = 'block';
   backdrop.style.display = 'block';
+  front.style.visibility = ''; // réinitialise un éventuel masquage laissé par une ouverture précédente
   card.style.top = rect.top + 'px';
   card.style.left = rect.left + 'px';
   card.style.width = rect.width + 'px';
@@ -2023,6 +2032,9 @@ function startDetailFlip(sourceEl){
     card.style.height = targetH + 'px';
     inner.classList.add('flipped');
   });
+  // Filet de sécurité Safari iOS (voir startCardFlip) : masque la face avant
+  // une fois le flip terminé, au cas où "backface-visibility" ne suffise pas.
+  setTimeout(()=>{ front.style.visibility = 'hidden'; }, 520);
 
   detailFlipOpen = true;
   detailFlipSourceRect = rect;
@@ -2049,10 +2061,12 @@ function closeDetailFlip(){
   if(!detailFlipOpen) return;
   flushExtraInfoIfPending();
   const card = document.getElementById('detail-flip-card');
+  const front = document.getElementById('detail-flip-front');
   const inner = document.getElementById('detail-flip-inner');
   const backdrop = document.getElementById('detail-flip-backdrop');
   const rect = detailFlipSourceRect;
 
+  if(front) front.style.visibility = ''; // on la rend de nouveau visible avant de la faire réapparaître en tournant
   if(rect){
     card.style.top = rect.top + 'px';
     card.style.left = rect.left + 'px';
