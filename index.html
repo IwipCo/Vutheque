@@ -216,6 +216,15 @@
   .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;}
   .settings-grid input{width:100%;}
   .settings-note{font-size:12px;color:var(--muted);margin-top:4px;}
+  .settings-section{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px 18px;
+    margin-bottom:16px;
+    max-width:700px;
+  }
+  .settings-section h3{font-size:15px;}
   .empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
   .discover-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
   .discover-card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--panel-2);}
@@ -276,7 +285,8 @@
     <button data-view="decouvrir">Découvrir</button>
   </nav>
   <div style="display:flex;gap:6px;">
-    <button class="icon-btn" id="btn-sync-top" onclick="ghSave()" title="Synchroniser sur GitHub">☁️</button>
+    <button class="icon-btn" id="btn-load-top" onclick="ghLoad()" title="Charger depuis GitHub">☁️⬇️</button>
+    <button class="icon-btn" id="btn-sync-top" onclick="ghSave()" title="Sauvegarder sur GitHub">☁️⬆️</button>
     <button class="icon-btn" id="btn-settings">⚙️ Paramètres</button>
   </div>
 </header>
@@ -375,88 +385,112 @@
   <section class="view" id="view-settings">
     <h2>Paramètres</h2>
 
-    <div class="settings-note" style="margin-bottom:20px;">
-      ⌨️ Raccourcis clavier : <strong>N</strong> nouveau film/série (selon l'onglet actif) · <strong>V</strong> marquer vu/non vu (fiche film ouverte) · <strong>Échap</strong> fermer la fenêtre.
-    </div>
-    <div class="settings-note" style="margin-bottom:20px;">Version de l'application : <strong id="app-version-settings"></strong></div>
-
-    <h3>Affichage</h3>
-    <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
-      <input type="checkbox" id="cfg-show-recommender" style="width:auto;">
-      Afficher qui recommande sur les cartes et dans les listes
-    </label>
-
-    <h3 style="margin-top:24px;">Clé API TMDB</h3>
-    <label class="field">Clé API TMDB (v3)</label>
-    <input type="text" id="cfg-tmdb-key" style="width:100%;max-width:420px;" placeholder="Colle ta clé ici">
-    <div class="settings-note">Gratuite sur themoviedb.org → Paramètres → API.</div>
-
-    <h3 style="margin-top:24px;">Mon cinéma</h3>
-    <label class="field">Lien vers le programme de ton cinéma</label>
-    <input type="text" id="cfg-cinema-url" style="width:100%;max-width:500px;" placeholder="https://toulouse.cinemas-utopia.org/horaires-tournefeuille/">
-    <div class="settings-note">Colle l'URL de la page "à l'affiche" ou "horaires" de ton cinéma. Un lien direct sera affiché dans "Découvrir", avec un aperçu automatique si le site le permet.</div>
-
-    <h3 style="margin-top:24px;">Dépôt GitHub de données (séparé du code)</h3>
-    <div class="settings-grid" style="max-width:600px;">
-      <div>
-        <label class="field">Propriétaire du dépôt (owner)</label>
-        <input type="text" id="cfg-gh-owner" placeholder="ex: monpseudo">
+    <div class="settings-section">
+      <h3 style="margin-top:0;">ℹ️ Général</h3>
+      <div class="settings-note" style="margin-top:0;">
+        ⌨️ Raccourcis clavier : <strong>N</strong> nouveau film/série (selon l'onglet actif) · <strong>V</strong> marquer vu/non vu (fiche film ouverte) · <strong>Échap</strong> fermer la fenêtre.
       </div>
-      <div>
-        <label class="field">Nom du dépôt de données</label>
-        <input type="text" id="cfg-gh-repo" placeholder="ex: films-series-data">
+      <div class="settings-note" style="margin-bottom:0;">Version de l'application : <strong id="app-version-settings"></strong></div>
+    </div>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">🖥️ Affichage</h3>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+        <input type="checkbox" id="cfg-show-recommender" style="width:auto;">
+        Afficher qui recommande sur les cartes et dans les listes
+      </label>
+    </div>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">🎬 Clé API TMDB</h3>
+      <label class="field" style="margin-top:0;">Clé API TMDB (v3)</label>
+      <input type="text" id="cfg-tmdb-key" style="width:100%;max-width:420px;" placeholder="Colle ta clé ici">
+      <div class="settings-note">Gratuite sur themoviedb.org → Paramètres → API.</div>
+    </div>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">🍿 Mon cinéma</h3>
+      <label class="field" style="margin-top:0;">Lien vers le programme de ton cinéma</label>
+      <input type="text" id="cfg-cinema-url" style="width:100%;max-width:500px;" placeholder="https://toulouse.cinemas-utopia.org/horaires-tournefeuille/">
+      <div class="settings-note">Colle l'URL de la page "à l'affiche" ou "horaires" de ton cinéma. Un lien direct sera affiché dans "Découvrir", avec un aperçu automatique si le site le permet.</div>
+    </div>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">☁️ Synchronisation GitHub</h3>
+
+      <div class="settings-grid" style="max-width:600px;">
+        <div>
+          <label class="field" style="margin-top:0;">Propriétaire du dépôt (owner)</label>
+          <input type="text" id="cfg-gh-owner" placeholder="ex: monpseudo">
+        </div>
+        <div>
+          <label class="field" style="margin-top:0;">Nom du dépôt de données</label>
+          <input type="text" id="cfg-gh-repo" placeholder="ex: films-series-data">
+        </div>
+        <div>
+          <label class="field">Branche</label>
+          <input type="text" id="cfg-gh-branch" placeholder="main">
+        </div>
+        <div>
+          <label class="field">Chemin du fichier JSON</label>
+          <input type="text" id="cfg-gh-path" placeholder="data.json">
+        </div>
       </div>
-      <div>
-        <label class="field">Branche</label>
-        <input type="text" id="cfg-gh-branch" placeholder="main">
+      <label class="field">Token GitHub (fine-grained, accès restreint à ce dépôt)</label>
+      <input type="password" id="cfg-gh-token" style="width:100%;max-width:420px;" placeholder="github_pat_...">
+      <div class="settings-note">Le token n'est jamais exporté avec tes données (films/séries) : il vit uniquement dans le localStorage de ton navigateur et dans le lien / fichier de config si tu choisis de les générer.</div>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:16px;font-size:14px;cursor:pointer;">
+        <input type="checkbox" id="cfg-auto-save" style="width:auto;">
+        Sauvegarde automatique sur GitHub après chaque modification
+      </label>
+      <div class="settings-note">Si activé, l'appli committe automatiquement sur GitHub ~4 secondes après ta dernière action (vu/non vu, ajout, etc.), sans que tu aies besoin de cliquer sur "Sauvegarder".</div>
+
+      <div style="margin-top:16px;">
+        <button class="btn" onclick="saveSettings()">Enregistrer ces réglages</button>
       </div>
-      <div>
-        <label class="field">Chemin du fichier JSON</label>
-        <input type="text" id="cfg-gh-path" placeholder="data.json">
+
+      <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:16px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn" onclick="ghSave()">☁️⬆️ Sauvegarder sur GitHub</button>
+          <button class="btn secondary" onclick="ghLoad()">☁️⬇️ Charger depuis GitHub</button>
+        </div>
+        <div class="settings-note" id="last-save-note" style="margin-top:10px;margin-bottom:0;"></div>
       </div>
     </div>
-    <label class="field">Token GitHub (fine-grained, accès restreint à ce dépôt)</label>
-    <input type="password" id="cfg-gh-token" style="width:100%;max-width:420px;" placeholder="github_pat_...">
-    <div class="settings-note">Le token n'est jamais exporté avec tes données (films/séries) : il vit uniquement dans le localStorage de ton navigateur et dans le lien / fichier de config si tu choisis de les générer.</div>
 
-    <label style="display:flex;align-items:center;gap:8px;margin-top:16px;font-size:14px;cursor:pointer;">
-      <input type="checkbox" id="cfg-auto-save" style="width:auto;">
-      Sauvegarde automatique sur GitHub après chaque modification
-    </label>
-    <div class="settings-note">Si activé, l'appli committe automatiquement sur GitHub ~4 secondes après ta dernière action (vu/non vu, ajout, etc.), sans que tu aies besoin de cliquer sur "Sauvegarder".</div>
-
-    <div style="margin-top:20px;">
-      <button class="btn" onclick="saveSettings()">Enregistrer les paramètres</button>
+    <div class="settings-section">
+      <h3 style="margin-top:0;">🔧 Maintenance</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" id="btn-refresh-metadata" onclick="refreshAllMetadata()">🔄 Rafraîchir les métadonnées (films &amp; séries)</button>
+      </div>
+      <div class="settings-note" style="margin-bottom:0;">Recontacte TMDB pour chaque film et série déjà ajoutés, et met à jour affiche, synopsis, genres, casting, année, réalisateur/créateur et lien TMDB. Ne touche ni à ton statut vu/non vu, ni à la liste des épisodes (utilise plutôt "Vérifier toutes les séries" pour ça).</div>
     </div>
 
-    <h3 style="margin-top:32px;">Sauvegarde &amp; données (films/séries)</h3>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn" onclick="ghSave()">☁️ Sauvegarder sur GitHub</button>
-      <button class="btn secondary" onclick="ghLoad()">☁️ Charger depuis GitHub</button>
-      <button class="btn secondary" onclick="exportJSON()">⬇️ Exporter le JSON</button>
-      <button class="btn secondary" onclick="document.getElementById('import-file').click()">⬆️ Importer un JSON</button>
-      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(this.files[0])">
-      <button class="btn danger" onclick="resetAll()">🗑️ Réinitialiser les données locales</button>
+    <div class="settings-section">
+      <h3 style="margin-top:0;">💾 Sauvegarde locale (fichier JSON)</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" onclick="exportJSON()">⬇️ Exporter le JSON</button>
+        <button class="btn secondary" onclick="document.getElementById('import-file').click()">⬆️ Importer un JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(this.files[0])">
+        <button class="btn danger" onclick="resetAll()">🗑️ Réinitialiser les données locales</button>
+      </div>
+      <div class="settings-note" style="margin-bottom:0;">Utile pour une sauvegarde manuelle ponctuelle, indépendante de GitHub.</div>
     </div>
-    <div class="settings-note" id="last-save-note" style="margin-top:10px;"></div>
 
-    <h3 style="margin-top:32px;">Maintenance</h3>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn secondary" id="btn-refresh-metadata" onclick="refreshAllMetadata()">🔄 Rafraîchir les métadonnées (films &amp; séries)</button>
-    </div>
-    <div class="settings-note">Recontacte TMDB pour chaque film et série déjà ajoutés, et met à jour affiche, synopsis, genres, casting, année, réalisateur/créateur et lien TMDB. Ne touche ni à ton statut vu/non vu, ni à la liste des épisodes (utilise plutôt "Vérifier toutes les séries" pour ça).</div>
-
-    <h3 style="margin-top:32px;">Sauvegarde &amp; partage des paramètres (clé TMDB, token GitHub...)</h3>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn secondary" onclick="exportConfig()">⬇️ Exporter les paramètres (JSON)</button>
-      <button class="btn secondary" onclick="document.getElementById('import-config-file').click()">⬆️ Importer des paramètres</button>
-      <input type="file" id="import-config-file" accept=".json" style="display:none" onchange="importConfig(this.files[0])">
-      <button class="btn secondary" onclick="generateConfigLink()">🔗 Générer un lien de configuration</button>
-    </div>
-    <div class="settings-note">⚠️ Le fichier de paramètres et le lien contiennent ton token GitHub en clair. Ne les partage jamais publiquement, ne les commit pas dans un dépôt public. Utilise le lien uniquement pour toi-même (ex : le mettre en favori sur un autre appareil).</div>
-    <div id="config-link-box" style="display:none;margin-top:10px;">
-      <input type="text" id="config-link-output" readonly style="width:100%;max-width:600px;" onclick="this.select()">
-      <button class="btn secondary" onclick="copyConfigLink()">Copier le lien</button>
+    <div class="settings-section">
+      <h3 style="margin-top:0;">🔐 Sauvegarde &amp; partage des paramètres (clé TMDB, token GitHub...)</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" onclick="exportConfig()">⬇️ Exporter les paramètres (JSON)</button>
+        <button class="btn secondary" onclick="document.getElementById('import-config-file').click()">⬆️ Importer des paramètres</button>
+        <input type="file" id="import-config-file" accept=".json" style="display:none" onchange="importConfig(this.files[0])">
+        <button class="btn secondary" onclick="generateConfigLink()">🔗 Générer un lien de configuration</button>
+      </div>
+      <div class="settings-note">⚠️ Le fichier de paramètres et le lien contiennent ton token GitHub en clair. Ne les partage jamais publiquement, ne les commit pas dans un dépôt public. Utilise le lien uniquement pour toi-même (ex : le mettre en favori sur un autre appareil).</div>
+      <div id="config-link-box" style="display:none;margin-top:10px;">
+        <input type="text" id="config-link-output" readonly style="width:100%;max-width:600px;" onclick="this.select()">
+        <button class="btn secondary" onclick="copyConfigLink()">Copier le lien</button>
+      </div>
     </div>
   </section>
 
@@ -501,7 +535,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.27';
+const APP_VERSION = '0.28';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
