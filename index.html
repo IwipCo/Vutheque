@@ -70,6 +70,9 @@
     border-radius:var(--radius);
     cursor:pointer;
     font-size:14px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
   }
   .icon-btn:hover{border-color:var(--accent);}
   main{padding:20px;padding-bottom:max(20px, env(safe-area-inset-bottom));max-width:1200px;margin:0 auto;}
@@ -285,8 +288,20 @@
     <button data-view="decouvrir">Découvrir</button>
   </nav>
   <div style="display:flex;gap:6px;">
-    <button class="icon-btn" id="btn-load-top" onclick="ghLoad()" title="Charger depuis GitHub">☁️⬇️</button>
-    <button class="icon-btn" id="btn-sync-top" onclick="ghSave()" title="Sauvegarder sur GitHub">☁️⬆️</button>
+    <button class="icon-btn" id="btn-load-top" onclick="ghLoad()" title="Charger depuis GitHub">
+      <svg viewBox="0 0 24 26" width="18" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+        <path d="M6 17h11a4 4 0 000-8 6 6 0 00-11.6-1.5A4.5 4.5 0 007 17z"/>
+        <path d="M12 11v12"/>
+        <path d="M8.7 19.3L12 23l3.3-3.7"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="btn-sync-top" onclick="ghSave()" title="Sauvegarder sur GitHub">
+      <svg viewBox="0 0 24 26" width="18" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+        <path d="M6 17h11a4 4 0 000-8 6 6 0 00-11.6-1.5A4.5 4.5 0 007 17z"/>
+        <path d="M12 23V11"/>
+        <path d="M8.7 14.7L12 11l3.3 3.7"/>
+      </svg>
+    </button>
     <button class="icon-btn" id="btn-settings">⚙️ Paramètres</button>
   </div>
 </header>
@@ -535,7 +550,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.28';
+const APP_VERSION = '0.29';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
