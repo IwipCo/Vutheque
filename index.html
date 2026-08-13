@@ -550,7 +550,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.29';
+const APP_VERSION = '0.30';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1137,13 +1137,13 @@ function renderSeries(){
       return;
     }
     c.innerHTML = rows.map(({s, next})=>`
-      <div class="episode-row quick-episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;padding:12px 14px;">
+      <div class="episode-row quick-episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;padding:12px 14px;align-items:center;">
         ${s.affiche_url ? `<img class="list-poster" src="${s.affiche_url}">` : ''}
-        <span class="ep-title" style="cursor:pointer;" onclick="openSerieDetail('${s.id}')">
-          <strong>${escapeHtml(s.titre)}</strong> — S${next.saison} E${next.episode.numero} · ${escapeHtml(next.episode.titre||'')}
-          ${showRecommender && s.recommande_par ? `<span style="font-size:11px;color:var(--accent);"> · 👤 ${escapeHtml(s.recommande_par)}</span>` : ''}
+        <span class="ep-title" style="cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:flex-start;" onclick="openSerieDetail('${s.id}')">
+          <span><strong>${escapeHtml(s.titre)}</strong> (${unwatchedCount(s)} à voir)${showRecommender && s.recommande_par ? ` <span style="font-size:11px;color:var(--accent);">· 👤 ${escapeHtml(s.recommande_par)}</span>` : ''}</span>
+          <span style="font-size:12px;color:var(--muted);">S${next.saison} E${next.episode.numero} · ${escapeHtml(next.episode.titre||'')}</span>
+          <span style="font-size:11px;color:var(--muted);">${formatDuration(getEpisodeDuration(next.episode, s))}${next.episode.date_diffusion ? ' · ' + next.episode.date_diffusion : ''}</span>
         </span>
-        <span class="ep-date">${next.episode.date_diffusion||''}</span>
         <button class="btn" onclick="markEpisodeWatchedQuick(this, '${s.id}', ${next.saison}, ${next.episode.numero})">✓ Vu</button>
       </div>
     `).join('');
