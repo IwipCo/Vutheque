@@ -164,8 +164,8 @@
     display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;
   }
   .dash-row .label{width:220px;font-size:13px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .dash-bar-bg{flex:1;background:var(--panel-2);border-radius:6px;height:22px;overflow:hidden;}
-  .dash-bar{height:100%;background:linear-gradient(90deg, var(--accent), var(--danger));display:flex;align-items:center;padding-left:8px;font-size:12px;font-weight:700;color:#fff;min-width:24px;}
+  .dash-bar-bg{flex:1;background:var(--panel-2);border-radius:6px;height:22px;overflow:visible;}
+  .dash-bar{height:100%;background:linear-gradient(90deg, var(--accent), var(--danger));display:flex;align-items:center;padding-left:8px;font-size:12px;font-weight:700;color:#fff;min-width:24px;white-space:nowrap;overflow:visible;border-radius:6px;}
   .stat-cards{display:flex;gap:14px;margin-bottom:24px;flex-wrap:wrap;}
   .stat-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;min-width:140px;}
   .stat-card .num{font-size:26px;font-weight:800;}
@@ -387,7 +387,11 @@
     <div id="discover-cinema"></div>
 
     <h3 style="margin-top:28px;">🎬 Films au cinéma en ce moment</h3>
+    <div class="settings-note" style="margin-top:-6px;">Trié par date de sortie (le plus récent d'abord) · sorties en France</div>
     <div id="discover-now-playing" class="grid"></div>
+
+    <h3 style="margin-top:28px;">🔥 Films populaires en ce moment</h3>
+    <div id="discover-trending-movies" class="grid"></div>
 
     <h3 style="margin-top:28px;">📈 Séries tendances du moment</h3>
     <div id="discover-trending-tv" class="grid"></div>
@@ -550,7 +554,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.30';
+const APP_VERSION = '0.31';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1097,7 +1101,15 @@ function unwatchedDurationMinutes(serie){
   }));
   return total;
 }
-// Formate une durée en minutes en texte lisible (min / h / j / mois).
+// Somme des durées (en minutes) des épisodes déjà vus d'une série.
+function watchedDurationMinutes(serie){
+  let total = 0;
+  (serie.saisons||[]).forEach(s=> s.episodes.forEach(e=>{
+    if(e.vu) total += getEpisodeDuration(e, serie);
+  }));
+  return total;
+}
+// Formate une durée en minutes en texte lisible (min / h / j / semaines / mois).
 function formatDuration(totalMinutes){
   totalMinutes = Math.round(totalMinutes);
   if(totalMinutes <= 0) return '0 min';
@@ -1107,7 +1119,12 @@ function formatDuration(totalMinutes){
   if(totalHours < 24) return totalHours + 'h' + (remMin ? String(remMin).padStart(2,'0') : '');
   const totalDays = Math.floor(totalHours/24);
   const remHours = totalHours % 24;
-  if(totalDays < 30) return totalDays + 'j' + (remHours ? ' ' + remHours + 'h' : '');
+  if(totalDays < 7) return totalDays + 'j' + (remHours ? ' ' + remHours + 'h' : '');
+  if(totalDays < 30){
+    const weeks = Math.floor(totalDays/7);
+    const remDays = totalDays % 7;
+    return weeks + 'sem' + (remDays ? ' ' + remDays + 'j' : '');
+  }
   const totalMonths = Math.floor(totalDays/30);
   const remDays = totalDays % 30;
   return totalMonths + ' mois' + (remDays ? ' ' + remDays + 'j' : '');
@@ -1323,8 +1340,13 @@ function renderDashboard(){
   const totalFilms = state.films.length;
   const filmsWatched = state.films.filter(f=>f.vu).length;
   const totalSeries = state.series.length;
-  let totalEp=0, unwEp=0, unwMinutes=0;
-  state.series.forEach(s=>{ totalEp+=totalCount(s); unwEp+=unwatchedCount(s); unwMinutes+=unwatchedDurationMinutes(s); });
+  let totalEp=0, unwEp=0, unwMinutes=0, watchedMinutes=0;
+  state.series.forEach(s=>{
+    totalEp += totalCount(s);
+    unwEp += unwatchedCount(s);
+    unwMinutes += unwatchedDurationMinutes(s);
+    watchedMinutes += watchedDurationMinutes(s);
+  });
 
   document.getElementById('stat-cards').innerHTML = `
     <div class="stat-card"><div class="num">${filmsWatched}/${totalFilms}</div><div class="lbl">Films vus</div></div>
@@ -1332,6 +1354,7 @@ function renderDashboard(){
     <div class="stat-card"><div class="num">${totalEp - unwEp}/${totalEp}</div><div class="lbl">Épisodes vus</div></div>
     <div class="stat-card"><div class="num">${unwEp}</div><div class="lbl">Épisodes à voir</div></div>
     <div class="stat-card"><div class="num">${formatDuration(unwMinutes)}</div><div class="lbl">Temps restant estimé</div></div>
+    <div class="stat-card"><div class="num">${formatDuration(watchedMinutes)}</div><div class="lbl">Temps regardé au total</div></div>
   `;
 
   // Graphique 1 : épisodes non vus
@@ -1355,7 +1378,7 @@ function renderDashboard(){
 
   // Graphique 2 : épisodes vus
   const watchedRows = state.series
-    .map(s => ({ titre: s.titre, id: s.id, count: watchedCount(s) }))
+    .map(s => ({ titre: s.titre, id: s.id, count: watchedCount(s), minutes: watchedDurationMinutes(s) }))
     .filter(r => r.count > 0)
     .sort((a,b) => b.count - a.count);
   const watchedMax = watchedRows.length ? Math.max(1, watchedRows[0].count) : 1;
@@ -1366,7 +1389,7 @@ function renderDashboard(){
     chartWatched.innerHTML = watchedRows.map(r=>`
       <div class="dash-row" onclick="openSerieDetail('${r.id}')">
         <div class="label">${escapeHtml(r.titre)}</div>
-        <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(6,(r.count/watchedMax)*100)}%;background:linear-gradient(90deg, var(--accent-2), var(--accent));">${r.count}</div></div>
+        <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(6,(r.count/watchedMax)*100)}%;background:linear-gradient(90deg, var(--accent-2), var(--accent));">${r.count}${r.minutes ? ' · ' + formatDuration(r.minutes) : ''}</div></div>
       </div>
     `).join('');
   }
@@ -1783,21 +1806,40 @@ async function refreshAllMetadata(){
    DECOUVRIR - recommandations TMDB (sorties, tendances, notes)
    ========================================================= */
 let discoverLoaded = false;
-let discoverData = { nowPlaying: [], trendingTv: [], onAir: [] };
+let discoverData = { nowPlaying: [], trendingMovies: [], trendingTv: [], onAir: [] };
 
-async function fetchTmdbList(url){
+// sortBy : 'vote' (note décroissante, défaut), 'date' (sortie la plus récente en premier,
+// pour "au cinéma" où la fraîcheur prime sur la note), ou 'popularity' (on garde l'ordre
+// renvoyé par TMDB, déjà classé par tendance/pertinence — ne pas re-trier par note ici).
+async function fetchTmdbList(url, sortBy){
+  sortBy = sortBy || 'vote';
   const res = await fetch(url);
   if(!res.ok) throw new Error('Erreur TMDB (' + res.status + ')');
   const data = await res.json();
   let results = data.results || [];
-  let filtered = results.filter(r => (r.vote_count||0) >= 20);
+
+  if(sortBy === 'popularity'){
+    return results.slice(0, 12);
+  }
+
+  const minVotes = sortBy === 'date' ? 3 : 20; // les sorties très récentes ont peu de votes, seuil plus bas
+  let filtered = results.filter(r => (r.vote_count||0) >= minVotes);
   if(filtered.length < 4) filtered = results; // évite une section vide si peu de votes
-  filtered.sort((a,b)=> (b.vote_average||0) - (a.vote_average||0));
+
+  if(sortBy === 'date'){
+    filtered = filtered.slice().sort((a,b) => {
+      const da = a.release_date || a.first_air_date || '';
+      const db = b.release_date || b.first_air_date || '';
+      return db.localeCompare(da); // le plus récent en premier
+    });
+  } else {
+    filtered = filtered.slice().sort((a,b) => (b.vote_average||0) - (a.vote_average||0));
+  }
   return filtered.slice(0, 12);
 }
 
 function renderDiscoverLoading(){
-  ['discover-now-playing','discover-trending-tv','discover-on-air'].forEach(id=>{
+  ['discover-now-playing','discover-trending-movies','discover-trending-tv','discover-on-air'].forEach(id=>{
     document.getElementById(id).innerHTML = '<div class="empty-state">Chargement...</div>';
   });
 }
@@ -1811,13 +1853,15 @@ async function loadDiscoverContent(force){
   }
   renderDiscoverLoading();
   try{
-    const [nowPlaying, trendingTv, onAir] = await Promise.all([
-      fetchTmdbList(`https://api.themoviedb.org/3/movie/now_playing?api_key=${cfg.tmdb_key}&language=fr-FR&region=FR&page=1`),
-      fetchTmdbList(`https://api.themoviedb.org/3/trending/tv/week?api_key=${cfg.tmdb_key}&language=fr-FR`),
-      fetchTmdbList(`https://api.themoviedb.org/3/tv/on_the_air?api_key=${cfg.tmdb_key}&language=fr-FR`)
+    const [nowPlaying, trendingMovies, trendingTv, onAir] = await Promise.all([
+      fetchTmdbList(`https://api.themoviedb.org/3/movie/now_playing?api_key=${cfg.tmdb_key}&language=fr-FR&region=FR&page=1`, 'date'),
+      fetchTmdbList(`https://api.themoviedb.org/3/trending/movie/week?api_key=${cfg.tmdb_key}&language=fr-FR`, 'popularity'),
+      fetchTmdbList(`https://api.themoviedb.org/3/trending/tv/week?api_key=${cfg.tmdb_key}&language=fr-FR`, 'popularity'),
+      fetchTmdbList(`https://api.themoviedb.org/3/tv/on_the_air?api_key=${cfg.tmdb_key}&language=fr-FR`, 'vote')
     ]);
-    discoverData = { nowPlaying, trendingTv, onAir };
+    discoverData = { nowPlaying, trendingMovies, trendingTv, onAir };
     renderDiscoverSection('discover-now-playing', nowPlaying, 'movie');
+    renderDiscoverSection('discover-trending-movies', trendingMovies, 'movie');
     renderDiscoverSection('discover-trending-tv', trendingTv, 'tv');
     renderDiscoverSection('discover-on-air', onAir, 'tv');
     discoverLoaded = true;
@@ -1863,12 +1907,13 @@ async function quickAddFromDiscover(tmdbId, type){
   currentSearchType = type;
   await addFromTmdb(tmdbId);
   renderDiscoverSection('discover-now-playing', discoverData.nowPlaying, 'movie');
+  renderDiscoverSection('discover-trending-movies', discoverData.trendingMovies, 'movie');
   renderDiscoverSection('discover-trending-tv', discoverData.trendingTv, 'tv');
   renderDiscoverSection('discover-on-air', discoverData.onAir, 'tv');
 }
 
 function findDiscoverItem(tmdbId, type){
-  const pools = type === 'movie' ? [discoverData.nowPlaying] : [discoverData.trendingTv, discoverData.onAir];
+  const pools = type === 'movie' ? [discoverData.nowPlaying, discoverData.trendingMovies] : [discoverData.trendingTv, discoverData.onAir];
   for(const pool of pools){
     const found = (pool||[]).find(x => x.id === tmdbId);
     if(found) return found;
