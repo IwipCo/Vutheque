@@ -554,7 +554,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.31';
+const APP_VERSION = '0.32';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1129,6 +1129,14 @@ function formatDuration(totalMinutes){
   const remDays = totalDays % 30;
   return totalMonths + ' mois' + (remDays ? ' ' + remDays + 'j' : '');
 }
+// Comme formatDuration, mais ajoute une seconde ligne avec l'équivalent en heures
+// dès que le format principal est en jours/semaines/mois (donc pas déjà en h/min).
+function formatDurationWithHours(totalMinutes){
+  const main = formatDuration(totalMinutes);
+  if(totalMinutes < 60*24) return main; // déjà en minutes/heures, pas besoin de répéter
+  const totalHours = Math.round(totalMinutes/60);
+  return `${main}<div style="font-size:11px;font-weight:400;color:var(--muted);margin-top:2px;">≈ ${totalHours} h</div>`;
+}
 
 function renderSeries(){
   const filter = document.getElementById('series-filter').value;
@@ -1353,8 +1361,8 @@ function renderDashboard(){
     <div class="stat-card"><div class="num">${totalSeries}</div><div class="lbl">Séries suivies</div></div>
     <div class="stat-card"><div class="num">${totalEp - unwEp}/${totalEp}</div><div class="lbl">Épisodes vus</div></div>
     <div class="stat-card"><div class="num">${unwEp}</div><div class="lbl">Épisodes à voir</div></div>
-    <div class="stat-card"><div class="num">${formatDuration(unwMinutes)}</div><div class="lbl">Temps restant estimé</div></div>
-    <div class="stat-card"><div class="num">${formatDuration(watchedMinutes)}</div><div class="lbl">Temps regardé au total</div></div>
+    <div class="stat-card"><div class="num">${formatDurationWithHours(unwMinutes)}</div><div class="lbl">Temps restant estimé</div></div>
+    <div class="stat-card"><div class="num">${formatDurationWithHours(watchedMinutes)}</div><div class="lbl">Temps regardé au total</div></div>
   `;
 
   // Graphique 1 : épisodes non vus
