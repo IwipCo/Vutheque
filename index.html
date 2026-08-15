@@ -218,6 +218,12 @@
   .episodes-wrap{display:none;}
   .episodes-wrap.open{display:block;}
   .quick-episode-row{transition:background .3s ease, transform .3s ease, opacity .3s ease;}
+  .quick-check{
+    width:28px;height:28px;
+    accent-color:var(--accent-2);
+    cursor:pointer;
+    flex-shrink:0;
+  }
   .quick-episode-row.just-watched{
     background:var(--accent-2) !important;
     transform:scale(0.98);
@@ -612,7 +618,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.33';
+const APP_VERSION = '0.34';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1224,7 +1230,7 @@ function renderAvoirFilms(){
         <span style="font-size:12px;color:var(--muted);">${escapeHtml(f.realisateur||'')}</span>
         <span style="font-size:11px;">${priorityBadgeSmall(f)}${showRecommender && f.recommande_par ? ` <span style="color:var(--accent);">· 👤 ${escapeHtml(f.recommande_par)}</span>` : ''}</span>
       </span>
-      <button class="btn" onclick="markFilmWatchedQuick(this, '${f.id}')">✓ Vu</button>
+      <input type="checkbox" class="quick-check" title="Marquer comme vu" onchange="markFilmWatchedQuick(this, '${f.id}')">
     </div>
   `).join('');
 }
@@ -1287,7 +1293,7 @@ function renderEpisodesQueueInto(containerId, list, showRecommender){
         <span style="font-size:12px;color:var(--muted);">S${next.saison} E${next.episode.numero} · ${escapeHtml(next.episode.titre||'')}</span>
         <span style="font-size:11px;color:var(--muted);">${formatDuration(getEpisodeDuration(next.episode, s))}${next.episode.date_diffusion ? ' · ' + next.episode.date_diffusion : ''}</span>
       </span>
-      <button class="btn" onclick="markEpisodeWatchedQuick(this, '${s.id}', ${next.saison}, ${next.episode.numero})">✓ Vu</button>
+      <input type="checkbox" class="quick-check" title="Marquer comme vu" onchange="markEpisodeWatchedQuick(this, '${s.id}', ${next.saison}, ${next.episode.numero})">
     </div>
   `).join('');
 }
