@@ -148,7 +148,11 @@
   }
   .card .info{padding:8px 10px;display:flex;flex-direction:column;flex:1;}
   .card .info button{margin-top:auto;}
-  .card .title{font-size:13px;font-weight:600;line-height:1.3;margin-bottom:2px;}
+  .card .title{
+    font-size:13px;font-weight:600;line-height:1.3;margin-bottom:2px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+    min-height:calc(1.3em * 2);
+  }
   .card .year{font-size:12px;color:var(--muted);}
   .badge{
     position:absolute;top:6px;right:6px;
@@ -624,7 +628,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.37';
+const APP_VERSION = '0.38';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -872,7 +876,7 @@ function renderFilms(){
         <div class="info">
           <div class="title">${escapeHtml(f.titre)}</div>
           <div class="year">${f.annee || ''}</div>
-          ${showRecommender && f.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(f.recommande_par)}</div>` : ''}
+          <div style="font-size:11px;color:var(--accent);margin-top:2px;min-height:14px;">${showRecommender && f.recommande_par ? `👤 ${escapeHtml(f.recommande_par)}` : ''}</div>
           <div style="margin-top:6px;display:flex;justify-content:flex-end;">
             <label class="vu-toggle-label" style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;" onclick="event.stopPropagation();">
               Vu <input type="checkbox" class="vu-check" ${f.vu?'checked':''} onchange="toggleFilmWatched('${f.id}', true)">
