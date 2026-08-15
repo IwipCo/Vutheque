@@ -1,0 +1,2651 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Vuthèque (prototype réorg)</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AC%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vuthèque">
+<meta name="theme-color" content="#4f8cff">
+<style>
+  :root{
+    --bg: #14161a;
+    --panel: #1d2026;
+    --panel-2: #262a32;
+    --border: #333844;
+    --text: #e8e9ec;
+    --muted: #9aa1ad;
+    --accent: #4f8cff;
+    --accent-2: #6ee7b7;
+    --danger: #ef5a5a;
+    --warn: #f5b849;
+    --radius: 8px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 20px;
+    padding-top:max(14px, env(safe-area-inset-top));
+    padding-left:max(20px, env(safe-area-inset-left));
+    padding-right:max(20px, env(safe-area-inset-right));
+    background:var(--panel);
+    border-bottom:1px solid var(--border);
+    position:sticky;
+    top:0;
+    z-index:20;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  header h1{font-size:18px;margin:0;font-weight:700;white-space:nowrap;}
+  nav{display:flex;gap:6px;flex-wrap:wrap;}
+  nav button{
+    background:transparent;
+    border:1px solid transparent;
+    color:var(--muted);
+    padding:8px 14px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    font-size:14px;
+    font-weight:600;
+  }
+  nav button.active{background:var(--accent);color:#fff;}
+  nav button:not(.active):hover{background:var(--panel-2);color:var(--text);}
+  .icon-btn{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:8px 12px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    font-size:14px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .icon-btn:hover{border-color:var(--accent);}
+  main{padding:20px;padding-bottom:max(20px, env(safe-area-inset-bottom));max-width:1200px;margin:0 auto;}
+  .view{display:none;}
+  .view.active{display:block;}
+  .toolbar{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+    margin-bottom:18px;
+  }
+  .toolbar .spacer{flex:1;}
+  input, select, textarea{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:8px 10px;
+    border-radius:var(--radius);
+    font-size:14px;
+  }
+  button.btn{
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    padding:8px 14px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    font-weight:600;
+    font-size:14px;
+  }
+  button.btn:hover{filter:brightness(1.1);}
+  button.btn.secondary{background:var(--panel-2);border:1px solid var(--border);color:var(--text);}
+  button.btn.danger{background:var(--danger);}
+  .toggle-group{display:flex;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+  .toggle-group button{
+    background:var(--panel-2);border:none;color:var(--muted);padding:8px 12px;cursor:pointer;font-size:13px;
+  }
+  .toggle-group button.active{background:var(--accent);color:#fff;}
+  .subtab-group{width:100%;max-width:900px;margin-bottom:4px;}
+  .subtab-group button{
+    flex:1;
+    padding:14px 10px;
+    font-size:15px;
+    font-weight:600;
+    text-align:center;
+  }
+
+  /* Cards */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(160px,1fr));
+    gap:16px;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    overflow:hidden;
+    cursor:pointer;
+    transition:transform .1s ease, border-color .1s ease;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    height:100%;
+  }
+  .card:hover{transform:translateY(-3px);border-color:var(--accent);}
+  .card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--panel-2);flex-shrink:0;}
+  .card .no-poster{
+    width:100%;aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;
+    background:var(--panel-2);color:var(--muted);font-size:12px;text-align:center;padding:8px;flex-shrink:0;
+  }
+  .card .info{padding:8px 10px;display:flex;flex-direction:column;flex:1;}
+  .card .info button{margin-top:auto;}
+  .card .title{font-size:13px;font-weight:600;line-height:1.3;margin-bottom:2px;}
+  .card .year{font-size:12px;color:var(--muted);}
+  .badge{
+    position:absolute;top:6px;right:6px;
+    background:rgba(0,0,0,.7);
+    padding:3px 7px;border-radius:20px;font-size:11px;font-weight:700;
+  }
+  .badge.watched{background:var(--accent-2);color:#0a2b1c;}
+  .badge.unwatched{background:var(--warn);color:#3a2900;}
+  .badge.new{background:var(--danger);color:#fff;}
+
+  /* List view */
+  table{width:100%;border-collapse:collapse;}
+  table th, table td{
+    text-align:left;padding:10px 8px;border-bottom:1px solid var(--border);font-size:14px;
+  }
+  table th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;}
+  table tr:hover{background:var(--panel-2);cursor:pointer;}
+  .list-poster{width:36px;height:54px;object-fit:cover;border-radius:4px;vertical-align:middle;}
+
+  /* Dashboard */
+  .dash-row{
+    display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;
+  }
+  .dash-row .label{width:220px;font-size:13px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .dash-bar-bg{flex:1;background:var(--panel-2);border-radius:6px;height:22px;overflow:visible;}
+  .dash-bar{height:100%;background:linear-gradient(90deg, var(--accent), var(--danger));display:flex;align-items:center;padding-left:8px;font-size:12px;font-weight:700;color:#fff;min-width:24px;white-space:nowrap;overflow:visible;border-radius:6px;}
+  .stat-cards{display:flex;gap:14px;margin-bottom:24px;flex-wrap:wrap;}
+  .stat-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;min-width:140px;}
+  .stat-card .num{font-size:26px;font-weight:800;}
+  .stat-card .lbl{font-size:12px;color:var(--muted);margin-top:4px;}
+
+  /* Modal */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;
+    align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal{
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    max-width:700px;width:100%;padding:22px;max-height:85vh;overflow-y:auto;
+  }
+  .modal h2{margin-top:0;}
+  .close-x{float:right;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
+  .search-result{
+    display:flex;gap:12px;padding:10px;border-bottom:1px solid var(--border);align-items:center;
+  }
+  .search-result img{width:46px;height:69px;object-fit:cover;border-radius:4px;background:var(--panel-2);}
+  .search-result .sr-info{flex:1;}
+  .search-result .sr-title{font-weight:600;font-size:14px;}
+  .search-result .sr-year{font-size:12px;color:var(--muted);}
+
+  .detail-header{display:flex;gap:16px;margin-bottom:16px;}
+  .detail-header img{width:140px;height:210px;object-fit:cover;border-radius:6px;flex-shrink:0;background:var(--panel-2);}
+  .detail-header .dh-meta{font-size:13px;color:var(--muted);margin-bottom:6px;}
+  .detail-header a{color:var(--accent);}
+  .season-block{margin-bottom:14px;border:1px solid var(--border);border-radius:6px;}
+  .season-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:10px 12px;background:var(--panel-2);cursor:pointer;font-weight:600;font-size:14px;
+    border-radius:6px 6px 0 0;
+  }
+  .episode-row{
+    display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--border);font-size:13px;
+  }
+  .episode-row .ep-title{flex:1;}
+  .episode-row .ep-date{color:var(--muted);font-size:12px;width:90px;flex-shrink:0;}
+  .episodes-wrap{display:none;}
+  .episodes-wrap.open{display:block;}
+  .quick-episode-row{transition:background .3s ease, transform .3s ease, opacity .3s ease;}
+  .quick-episode-row.just-watched{
+    background:var(--accent-2) !important;
+    transform:scale(0.98);
+    opacity:.55;
+  }
+
+  label.field{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;}
+  .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;}
+  .settings-grid input{width:100%;}
+  .settings-note{font-size:12px;color:var(--muted);margin-top:4px;}
+  .settings-section{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px 18px;
+    margin-bottom:16px;
+    max-width:700px;
+  }
+  .settings-section h3{font-size:15px;}
+  .empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+  .discover-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+  .discover-card img{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--panel-2);}
+  .discover-card .info{padding:8px 10px;}
+  .discover-card .title{font-size:13px;font-weight:600;line-height:1.3;margin-bottom:2px;}
+  .discover-card .meta{font-size:12px;color:var(--muted);margin-bottom:8px;}
+  .discover-card button{width:100%;}
+  .note-badge{
+    position:absolute;top:6px;right:6px;background:var(--warn);color:#3a2900;
+    padding:3px 7px;border-radius:20px;font-size:11px;font-weight:700;
+  }
+  .flip-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,0);z-index:149;
+    transition:background .4s ease;
+  }
+  .flip-backdrop.show{background:rgba(0,0,0,.6);}
+  .flip-card{
+    position:fixed;z-index:150;perspective:1600px;
+    transition:top .45s cubic-bezier(.4,0,.2,1), left .45s cubic-bezier(.4,0,.2,1),
+               width .45s cubic-bezier(.4,0,.2,1), height .45s cubic-bezier(.4,0,.2,1);
+  }
+  .flip-inner{
+    position:relative;width:100%;height:100%;
+    transform-style:preserve-3d;
+    transition:transform .5s cubic-bezier(.4,0,.2,1);
+  }
+  .flip-inner.flipped{transform:rotateY(180deg);}
+  .flip-face{
+    position:absolute;inset:0;backface-visibility:hidden;
+    border-radius:12px;background:var(--panel);border:1px solid var(--border);
+  }
+  .flip-face.front{overflow:hidden;}
+  .flip-face.back{overflow-y:auto;padding:20px;transform:rotateY(180deg);}
+  .toast{
+    position:fixed;bottom:20px;right:20px;background:var(--panel-2);border:1px solid var(--border);
+    padding:12px 18px;border-radius:var(--radius);z-index:200;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,.4);
+    display:none;
+  }
+  .toast.show{display:block;}
+  .toast.error{border-color:var(--danger);}
+  .toast.success{border-color:var(--accent-2);}
+  @media (max-width:600px){
+    .settings-grid{grid-template-columns:1fr;}
+    .detail-header{flex-direction:column;}
+    header h1{font-size:15px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎬 Vuthèque <span id="app-version" style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;"></span></h1>
+  <button class="btn" id="btn-add-top" onclick="openAddForCurrentTab()">+ Ajouter</button>
+  <nav id="main-nav">
+    <button data-view="avoir" class="active">À voir</button>
+    <button data-view="films">Films</button>
+    <button data-view="series">Séries</button>
+    <button data-view="dashboard">Tableau de bord</button>
+  </nav>
+  <div style="display:flex;gap:6px;">
+    <button class="icon-btn" id="btn-load-top" onclick="ghLoad()" title="Charger depuis GitHub">
+      <svg viewBox="0 0 24 26" width="18" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+        <path d="M6 17h11a4 4 0 000-8 6 6 0 00-11.6-1.5A4.5 4.5 0 007 17z"/>
+        <path d="M12 11v12"/>
+        <path d="M8.7 19.3L12 23l3.3-3.7"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="btn-sync-top" onclick="ghSave()" title="Sauvegarder sur GitHub">
+      <svg viewBox="0 0 24 26" width="18" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+        <path d="M6 17h11a4 4 0 000-8 6 6 0 00-11.6-1.5A4.5 4.5 0 007 17z"/>
+        <path d="M12 23V11"/>
+        <path d="M8.7 14.7L12 11l3.3 3.7"/>
+      </svg>
+    </button>
+    <button class="icon-btn" id="btn-settings">⚙️ Paramètres</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- A VOIR -->
+  <section class="view active" id="view-avoir">
+    <div class="toolbar">
+      <div class="toggle-group subtab-group">
+        <button id="avoir-tab-series" class="active" onclick="setAvoirTab('series')">Séries</button>
+        <button id="avoir-tab-films" onclick="setAvoirTab('films')">Films</button>
+      </div>
+    </div>
+
+    <div id="avoir-series-panel">
+      <div id="avoir-series-container"></div>
+    </div>
+
+    <div id="avoir-films-panel" style="display:none;">
+      <div class="toolbar">
+        <select id="avoir-films-sort" onchange="renderAvoirFilms()">
+          <option value="priorite_desc" selected>Priorité (la plus haute d'abord)</option>
+          <option value="date_ajout_desc">Date d'ajout (récent d'abord)</option>
+          <option value="titre">Titre (A-Z)</option>
+        </select>
+      </div>
+      <div id="avoir-films-container"></div>
+    </div>
+  </section>
+
+  <!-- FILMS -->
+  <section class="view" id="view-films">
+    <div class="toolbar">
+      <div class="toggle-group subtab-group">
+        <button id="films-tab-liste" class="active" onclick="setFilmsPageTab('liste')">Ma liste</button>
+        <button id="films-tab-decouvrir" onclick="setFilmsPageTab('decouvrir')">Découvrir</button>
+      </div>
+    </div>
+
+    <div id="films-liste-panel">
+      <div class="toolbar">
+        <button class="btn" onclick="openSearchModal('movie')">+ Ajouter un film</button>
+        <select id="films-filter" onchange="renderFilms()">
+          <option value="all">Tous</option>
+          <option value="watched">Vus</option>
+          <option value="unwatched" selected>Non vus</option>
+        </select>
+        <select id="films-sort" onchange="renderFilms()">
+          <option value="date_ajout_desc">Date d'ajout (récent d'abord)</option>
+          <option value="date_ajout_asc">Date d'ajout (ancien d'abord)</option>
+          <option value="annee_desc">Année (récent d'abord)</option>
+          <option value="annee_asc">Année (ancien d'abord)</option>
+          <option value="titre">Titre (A-Z)</option>
+          <option value="realisateur">Réalisateur (A-Z)</option>
+          <option value="priorite_desc" selected>Priorité (la plus haute d'abord)</option>
+          <option value="recommande_par">Recommandé par (A-Z)</option>
+        </select>
+        <div class="spacer"></div>
+        <div class="toggle-group">
+          <button id="films-view-card" class="active" onclick="setFilmsView('card')">Carte</button>
+          <button id="films-view-list" onclick="setFilmsView('list')">Liste</button>
+        </div>
+      </div>
+      <div id="films-container"></div>
+    </div>
+
+    <div id="films-decouvrir-panel" style="display:none;">
+      <div class="toolbar">
+        <button class="btn secondary" onclick="loadDiscoverContent(true); loadCinemaProgramme();">🔄 Actualiser</button>
+        <div class="settings-note" style="margin:0;">Basé sur les notes publiques TMDB · région France</div>
+      </div>
+
+      <h3>🍿 Mon cinéma</h3>
+      <div id="discover-cinema"></div>
+
+      <h3 style="margin-top:28px;">🎬 Films au cinéma en ce moment</h3>
+      <div class="settings-note" style="margin-top:-6px;">Trié par date de sortie (le plus récent d'abord) · sorties en France</div>
+      <div id="discover-now-playing" class="grid"></div>
+
+      <h3 style="margin-top:28px;">🔥 Films populaires en ce moment</h3>
+      <div id="discover-trending-movies" class="grid"></div>
+    </div>
+  </section>
+
+  <!-- SERIES -->
+  <section class="view" id="view-series">
+    <div class="toolbar">
+      <div class="toggle-group subtab-group">
+        <button id="series-tab-liste" class="active" onclick="setSeriesPageTab('liste')">Ma liste</button>
+        <button id="series-tab-decouvrir" onclick="setSeriesPageTab('decouvrir')">Découvrir</button>
+      </div>
+    </div>
+
+    <div id="series-liste-panel">
+      <div class="toolbar">
+        <button class="btn" onclick="openSearchModal('tv')">+ Ajouter une série</button>
+        <button class="btn secondary" id="btn-check-all" onclick="checkAllSeriesUpdates()">🔄 Vérifier toutes les séries</button>
+        <select id="series-filter" onchange="renderSeries()">
+          <option value="all">Toutes (suivies)</option>
+          <option value="unfinished" selected>Avec épisodes non vus</option>
+          <option value="finished">Entièrement vues</option>
+          <option value="stopped">Arrêtées</option>
+        </select>
+        <select id="series-sort" onchange="renderSeries()">
+          <option value="date_ajout_desc">Date d'ajout (récent d'abord)</option>
+          <option value="date_ajout_asc">Date d'ajout (ancien d'abord)</option>
+          <option value="annee_desc">Année (récent d'abord)</option>
+          <option value="annee_asc">Année (ancien d'abord)</option>
+          <option value="titre">Titre (A-Z)</option>
+          <option value="realisateur">Créateur (A-Z)</option>
+          <option value="priorite_desc" selected>Priorité (la plus haute d'abord)</option>
+          <option value="recommande_par">Recommandé par (A-Z)</option>
+        </select>
+        <div class="spacer"></div>
+        <div class="toggle-group">
+          <button id="series-view-card" class="active" onclick="setSeriesView('card')">Carte</button>
+          <button id="series-view-list" onclick="setSeriesView('list')">Liste</button>
+          <button id="series-view-episodes" onclick="setSeriesView('episodes')">Épisodes</button>
+        </div>
+      </div>
+      <div id="series-container"></div>
+    </div>
+
+    <div id="series-decouvrir-panel" style="display:none;">
+      <div class="toolbar">
+        <button class="btn secondary" onclick="loadDiscoverContent(true);">🔄 Actualiser</button>
+        <div class="settings-note" style="margin:0;">Basé sur les tendances TMDB</div>
+      </div>
+
+      <h3>📈 Séries tendances du moment</h3>
+      <div id="discover-trending-tv" class="grid"></div>
+
+      <h3 style="margin-top:28px;">🆕 Séries avec des épisodes qui viennent de sortir</h3>
+      <div id="discover-on-air" class="grid"></div>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section class="view" id="view-dashboard">
+    <div class="stat-cards" id="stat-cards"></div>
+    <h3>Épisodes non vus par série</h3>
+    <div id="dash-chart"></div>
+    <h3 style="margin-top:28px;">Épisodes vus par série</h3>
+    <div id="dash-chart-watched"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="view-settings">
+    <h2>Paramètres</h2>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">ℹ️ Général</h3>
+      <div class="settings-note" style="margin-top:0;">
+        ⌨️ Raccourcis clavier : <strong>N</strong> nouveau film/série (selon l'onglet actif) · <strong>V</strong> marquer vu/non vu (fiche film ouverte) · <strong>Échap</strong> fermer la fenêtre.
+      </div>
+      <div class="settings-note" style="margin-bottom:0;">Version de l'application : <strong id="app-version-settings"></strong></div>
+    </div>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">🖥️ Affichage</h3>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+        <input type="checkbox" id="cfg-show-recommender" style="width:auto;">
+        Afficher qui recommande sur les cartes et dans les listes
+      </label>
+    </div>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">🎬 Clé API TMDB</h3>
+      <label class="field" style="margin-top:0;">Clé API TMDB (v3)</label>
+      <input type="text" id="cfg-tmdb-key" style="width:100%;max-width:420px;" placeholder="Colle ta clé ici">
+      <div class="settings-note">Gratuite sur themoviedb.org → Paramètres → API.</div>
+    </div>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">🍿 Mon cinéma</h3>
+      <label class="field" style="margin-top:0;">Lien vers le programme de ton cinéma</label>
+      <input type="text" id="cfg-cinema-url" style="width:100%;max-width:500px;" placeholder="https://toulouse.cinemas-utopia.org/horaires-tournefeuille/">
+      <div class="settings-note">Colle l'URL de la page "à l'affiche" ou "horaires" de ton cinéma. Un lien direct sera affiché dans "Découvrir", avec un aperçu automatique si le site le permet.</div>
+    </div>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">☁️ Synchronisation GitHub</h3>
+
+      <div class="settings-grid" style="max-width:600px;">
+        <div>
+          <label class="field" style="margin-top:0;">Propriétaire du dépôt (owner)</label>
+          <input type="text" id="cfg-gh-owner" placeholder="ex: monpseudo">
+        </div>
+        <div>
+          <label class="field" style="margin-top:0;">Nom du dépôt de données</label>
+          <input type="text" id="cfg-gh-repo" placeholder="ex: films-series-data">
+        </div>
+        <div>
+          <label class="field">Branche</label>
+          <input type="text" id="cfg-gh-branch" placeholder="main">
+        </div>
+        <div>
+          <label class="field">Chemin du fichier JSON</label>
+          <input type="text" id="cfg-gh-path" placeholder="data.json">
+        </div>
+      </div>
+      <label class="field">Token GitHub (fine-grained, accès restreint à ce dépôt)</label>
+      <input type="password" id="cfg-gh-token" style="width:100%;max-width:420px;" placeholder="github_pat_...">
+      <div class="settings-note">Le token n'est jamais exporté avec tes données (films/séries) : il vit uniquement dans le localStorage de ton navigateur et dans le lien / fichier de config si tu choisis de les générer.</div>
+
+      <label style="display:flex;align-items:center;gap:8px;margin-top:16px;font-size:14px;cursor:pointer;">
+        <input type="checkbox" id="cfg-auto-save" style="width:auto;">
+        Sauvegarde automatique sur GitHub après chaque modification
+      </label>
+      <div class="settings-note">Si activé, l'appli committe automatiquement sur GitHub ~4 secondes après ta dernière action (vu/non vu, ajout, etc.), sans que tu aies besoin de cliquer sur "Sauvegarder".</div>
+
+      <div style="margin-top:16px;">
+        <button class="btn" onclick="saveSettings()">Enregistrer ces réglages</button>
+      </div>
+
+      <div style="border-top:1px solid var(--border);margin-top:20px;padding-top:16px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn" onclick="ghSave()">☁️⬆️ Sauvegarder sur GitHub</button>
+          <button class="btn secondary" onclick="ghLoad()">☁️⬇️ Charger depuis GitHub</button>
+        </div>
+        <div class="settings-note" id="last-save-note" style="margin-top:10px;margin-bottom:0;"></div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">🔧 Maintenance</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" id="btn-refresh-metadata" onclick="refreshAllMetadata()">🔄 Rafraîchir les métadonnées (films &amp; séries)</button>
+      </div>
+      <div class="settings-note" style="margin-bottom:0;">Recontacte TMDB pour chaque film et série déjà ajoutés, et met à jour affiche, synopsis, genres, casting, année, réalisateur/créateur et lien TMDB. Ne touche ni à ton statut vu/non vu, ni à la liste des épisodes (utilise plutôt "Vérifier toutes les séries" pour ça).</div>
+    </div>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">💾 Sauvegarde locale (fichier JSON)</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" onclick="exportJSON()">⬇️ Exporter le JSON</button>
+        <button class="btn secondary" onclick="document.getElementById('import-file').click()">⬆️ Importer un JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(this.files[0])">
+        <button class="btn danger" onclick="resetAll()">🗑️ Réinitialiser les données locales</button>
+      </div>
+      <div class="settings-note" style="margin-bottom:0;">Utile pour une sauvegarde manuelle ponctuelle, indépendante de GitHub.</div>
+    </div>
+
+    <div class="settings-section">
+      <h3 style="margin-top:0;">🔐 Sauvegarde &amp; partage des paramètres (clé TMDB, token GitHub...)</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" onclick="exportConfig()">⬇️ Exporter les paramètres (JSON)</button>
+        <button class="btn secondary" onclick="document.getElementById('import-config-file').click()">⬆️ Importer des paramètres</button>
+        <input type="file" id="import-config-file" accept=".json" style="display:none" onchange="importConfig(this.files[0])">
+        <button class="btn secondary" onclick="generateConfigLink()">🔗 Générer un lien de configuration</button>
+      </div>
+      <div class="settings-note">⚠️ Le fichier de paramètres et le lien contiennent ton token GitHub en clair. Ne les partage jamais publiquement, ne les commit pas dans un dépôt public. Utilise le lien uniquement pour toi-même (ex : le mettre en favori sur un autre appareil).</div>
+      <div id="config-link-box" style="display:none;margin-top:10px;">
+        <input type="text" id="config-link-output" readonly style="width:100%;max-width:600px;" onclick="this.select()">
+        <button class="btn secondary" onclick="copyConfigLink()">Copier le lien</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- SEARCH MODAL -->
+<div class="modal-overlay" id="search-modal">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('search-modal')">✕</button>
+    <h2 id="search-modal-title">Rechercher</h2>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="search-input" style="flex:1;" placeholder="Titre du film ou de la série...">
+      <button class="btn" onclick="doSearch()">Rechercher</button>
+    </div>
+    <div id="search-results" style="margin-top:14px;"></div>
+
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">Tu ne trouves pas le bon résultat ? Colle un lien TMDB :</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="tmdb-link-input" style="flex:1;" placeholder="https://www.themoviedb.org/movie/12345-titre">
+        <button class="btn secondary" onclick="addFromTmdbLink()">Ajouter depuis ce lien</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL FLIP (fiche film/série animée depuis sa carte) -->
+<div class="flip-backdrop" id="detail-flip-backdrop" onclick="closeDetailFlip()" style="display:none;"></div>
+<div class="flip-card" id="detail-flip-card" style="display:none;">
+  <div class="flip-inner" id="detail-flip-inner">
+    <div class="flip-face front discover-card" id="detail-flip-front"></div>
+    <div class="flip-face back" id="detail-flip-back">
+      <button class="close-x" onclick="closeDetailFlip()">✕</button>
+      <div id="detail-content"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   ETAT / STOCKAGE
+   ========================================================= */
+const APP_VERSION = '0.32';
+
+let state = { films: [], series: [] };
+let filmsView = 'card';
+let seriesView = 'card';
+let currentSearchType = 'movie';
+let lastSearchResults = [];
+let openDetailId = null;
+let openDetailType = null;
+
+const LS_STATE = 'watchlist_data';
+const LS_CFG = 'watchlist_config';
+
+function loadLocalState(){
+  const raw = localStorage.getItem(LS_STATE);
+  if(raw){
+    try{ state = JSON.parse(raw); }catch(e){ state = {films:[], series:[]}; }
+  }
+  if(!state.films) state.films = [];
+  if(!state.series) state.series = [];
+}
+function saveLocalState(){
+  localStorage.setItem(LS_STATE, JSON.stringify(state));
+  scheduleAutoSave();
+}
+
+let autoSaveTimer = null;
+function scheduleAutoSave(){
+  const cfg = getCfg();
+  if(!cfg.auto_save) return;
+  if(!cfg.gh_owner || !cfg.gh_repo || !cfg.gh_token) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(()=>{ ghSave(true); }, 4000);
+}
+function getCfg(){
+  const raw = localStorage.getItem(LS_CFG);
+  return raw ? JSON.parse(raw) : {};
+}
+function setCfg(cfg){
+  localStorage.setItem(LS_CFG, JSON.stringify(cfg));
+}
+
+function saveSettings(){
+  const previous = getCfg();
+  const cfg = {
+    tmdb_key: document.getElementById('cfg-tmdb-key').value.trim(),
+    cinema_url: document.getElementById('cfg-cinema-url').value.trim(),
+    gh_owner: document.getElementById('cfg-gh-owner').value.trim(),
+    gh_repo: document.getElementById('cfg-gh-repo').value.trim(),
+    gh_branch: document.getElementById('cfg-gh-branch').value.trim() || 'main',
+    gh_path: document.getElementById('cfg-gh-path').value.trim() || 'data.json',
+    gh_token: document.getElementById('cfg-gh-token').value.trim(),
+    auto_save: document.getElementById('cfg-auto-save').checked,
+    show_recommender: document.getElementById('cfg-show-recommender').checked,
+  };
+  setCfg(cfg);
+  // Si la cible du dépôt/fichier change, l'ancien repère de synchro n'a plus de sens.
+  if(previous.gh_owner !== cfg.gh_owner || previous.gh_repo !== cfg.gh_repo ||
+     previous.gh_branch !== cfg.gh_branch || previous.gh_path !== cfg.gh_path){
+    setLastRemoteSha(null);
+  }
+  renderFilms();
+  renderSeries();
+  showToast('Paramètres enregistrés', 'success');
+}
+function loadSettingsIntoForm(){
+  const cfg = getCfg();
+  document.getElementById('cfg-tmdb-key').value = cfg.tmdb_key || '';
+  document.getElementById('cfg-cinema-url').value = cfg.cinema_url || '';
+  document.getElementById('cfg-gh-owner').value = cfg.gh_owner || '';
+  document.getElementById('cfg-gh-repo').value = cfg.gh_repo || '';
+  document.getElementById('cfg-gh-branch').value = cfg.gh_branch || 'main';
+  document.getElementById('cfg-gh-path').value = cfg.gh_path || 'data.json';
+  document.getElementById('cfg-gh-token').value = cfg.gh_token || '';
+  document.getElementById('cfg-auto-save').checked = !!cfg.auto_save;
+  document.getElementById('cfg-show-recommender').checked = !!cfg.show_recommender;
+}
+
+/* ---- Export / import / lien de configuration ---- */
+function exportConfig(){
+  const cfg = getCfg();
+  const blob = new Blob([JSON.stringify(cfg, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'vutheque-config.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Paramètres exportés', 'success');
+}
+function importConfig(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const cfg = JSON.parse(e.target.result);
+      setCfg(cfg);
+      loadSettingsIntoForm();
+      showToast('Paramètres importés', 'success');
+    }catch(err){
+      showToast("Erreur d'import des paramètres : " + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+function cfgToUrlSafeB64(cfg){
+  return utf8_to_b64(JSON.stringify(cfg)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function urlSafeB64ToCfg(str){
+  let b64 = str.replace(/-/g,'+').replace(/_/g,'/');
+  while(b64.length % 4) b64 += '=';
+  return JSON.parse(b64_to_utf8(b64));
+}
+function generateConfigLink(){
+  const cfg = getCfg();
+  const encoded = cfgToUrlSafeB64(cfg);
+  const base = location.origin + location.pathname;
+  const link = base + '#cfg=' + encoded;
+  document.getElementById('config-link-output').value = link;
+  document.getElementById('config-link-box').style.display = 'block';
+  showToast('Lien généré — garde-le privé', 'success');
+}
+function copyConfigLink(){
+  const el = document.getElementById('config-link-output');
+  el.select();
+  navigator.clipboard.writeText(el.value).then(()=>{
+    showToast('Lien copié', 'success');
+  }).catch(()=>{
+    showToast('Copie impossible, sélectionne et copie manuellement', 'error');
+  });
+}
+function loadConfigFromUrlIfPresent(){
+  const hash = location.hash;
+  if(!hash || hash.indexOf('cfg=') === -1) return;
+  try{
+    const encoded = hash.split('cfg=')[1];
+    const cfg = urlSafeB64ToCfg(decodeURIComponent(encoded));
+    setCfg(cfg);
+    showToast('Paramètres chargés depuis le lien', 'success');
+  }catch(err){
+    showToast('Lien de configuration invalide', 'error');
+  }finally{
+    // On retire le hash de l'URL/historique pour ne pas laisser le token visible
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+}
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+document.getElementById('main-nav').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-view]');
+  if(!btn) return;
+  document.querySelectorAll('#main-nav button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-' + btn.dataset.view).classList.add('active');
+  if(btn.dataset.view === 'dashboard') renderDashboard();
+  if(btn.dataset.view === 'avoir') renderAvoirSeries(); // l'onglet Séries est actif par défaut
+});
+document.getElementById('btn-settings').addEventListener('click', ()=>{
+  document.querySelectorAll('#main-nav button').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-settings').classList.add('active');
+  loadSettingsIntoForm();
+});
+
+function setFilmsView(v){
+  filmsView = v;
+  document.getElementById('films-view-card').classList.toggle('active', v==='card');
+  document.getElementById('films-view-list').classList.toggle('active', v==='list');
+  renderFilms();
+}
+function setSeriesView(v){
+  seriesView = v;
+  document.getElementById('series-view-card').classList.toggle('active', v==='card');
+  document.getElementById('series-view-list').classList.toggle('active', v==='list');
+  document.getElementById('series-view-episodes').classList.toggle('active', v==='episodes');
+  renderSeries();
+}
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+let toastTimer;
+function showToast(msg, type=''){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove('show'), 3500);
+}
+
+/* =========================================================
+   RENDU - FILMS
+   ========================================================= */
+function sortList(list, sortValue, kind){
+  const list2 = list.slice();
+  const getYear = (x)=> parseInt(x.annee) || 0;
+  const getPerson = (x)=> (kind === 'serie' ? (x.createur || '') : (x.realisateur || ''));
+  switch(sortValue){
+    case 'date_ajout_asc':
+      list2.sort((a,b)=>(a.date_ajout||'').localeCompare(b.date_ajout||'')); break;
+    case 'annee_desc':
+      list2.sort((a,b)=>getYear(b)-getYear(a)); break;
+    case 'annee_asc':
+      list2.sort((a,b)=>getYear(a)-getYear(b)); break;
+    case 'titre':
+      list2.sort((a,b)=>(a.titre||'').localeCompare(b.titre||'', 'fr', {sensitivity:'base'})); break;
+    case 'realisateur':
+      list2.sort((a,b)=>getPerson(a).localeCompare(getPerson(b), 'fr', {sensitivity:'base'})); break;
+    case 'priorite_desc':
+      list2.sort((a,b)=>PRIORITY_LEVELS[getPriority(b)].rank - PRIORITY_LEVELS[getPriority(a)].rank); break;
+    case 'recommande_par':
+      list2.sort((a,b)=>(a.recommande_par||'').localeCompare(b.recommande_par||'', 'fr', {sensitivity:'base'})); break;
+    case 'date_ajout_desc':
+    default:
+      list2.sort((a,b)=>(b.date_ajout||'').localeCompare(a.date_ajout||'')); break;
+  }
+  return list2;
+}
+
+function renderFilms(){
+  const filter = document.getElementById('films-filter').value;
+  const sortValue = document.getElementById('films-sort').value;
+  const showRecommender = !!getCfg().show_recommender;
+  let list = state.films.slice();
+  if(filter === 'watched') list = list.filter(f=>f.vu);
+  if(filter === 'unwatched') list = list.filter(f=>!f.vu);
+  list = sortList(list, sortValue, 'film');
+  const c = document.getElementById('films-container');
+
+  if(list.length === 0){
+    c.innerHTML = '<div class="empty-state">Aucun film ici pour le moment. Clique sur "+ Ajouter un film".</div>';
+    return;
+  }
+
+  if(filmsView === 'card'){
+    c.innerHTML = '<div class="grid">' + list.map(f=>`
+      <div class="card" onclick="openFilmDetailFromCard(this, '${f.id}')">
+        <div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;align-items:center;z-index:1;">
+          ${priorityIconOnly(f)}
+          <span class="badge ${f.vu?'watched':'unwatched'}" style="position:static;">${f.vu?'Vu':'Non vu'}</span>
+        </div>
+        ${f.affiche_url ? `<img src="${f.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(f.titre)}</div>`}
+        <div class="info">
+          <div class="title">${escapeHtml(f.titre)}</div>
+          <div class="year">${f.annee || ''}</div>
+          ${showRecommender && f.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(f.recommande_par)}</div>` : ''}
+          <button class="btn ${f.vu?'secondary':''}" style="width:100%;margin-top:6px;padding:5px 0;font-size:12px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button>
+        </div>
+      </div>
+    `).join('') + '</div>';
+  } else {
+    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Année</th><th>Réalisateur</th><th>Priorité</th>${showRecommender?'<th>Recommandé par</th>':''}<th>Statut</th><th></th></tr></thead><tbody>
+      ${list.map(f=>`
+        <tr onclick="openFilmDetail('${f.id}')">
+          <td>${f.affiche_url ? `<img class="list-poster" src="${f.affiche_url}">` : ''}</td>
+          <td>${escapeHtml(f.titre)}</td>
+          <td>${f.annee||''}</td>
+          <td>${escapeHtml(f.realisateur||'')}</td>
+          <td>${priorityBadgeSmall(f)}</td>
+          ${showRecommender?`<td>${escapeHtml(f.recommande_par||'')}</td>`:''}
+          <td>${f.vu ? '✅ Vu' : '⬜ Non vu'}</td>
+          <td><button class="btn ${f.vu?'secondary':''}" style="font-size:12px;padding:5px 10px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button></td>
+        </tr>
+      `).join('')}
+    </tbody></table>`;
+  }
+}
+
+function hasExtraInfo(item){
+  return !!(( item.commentaire && item.commentaire.trim()) || (item.recommande_par && item.recommande_par.trim()) || (item.liens && item.liens.length));
+}
+
+function getKnownTags(){
+  const tags = new Set();
+  state.films.forEach(f=>{ if(f.recommande_par) tags.add(f.recommande_par); });
+  state.series.forEach(s=>{ if(s.recommande_par) tags.add(s.recommande_par); });
+  return Array.from(tags).sort((a,b)=>a.localeCompare(b, 'fr'));
+}
+
+// Récupère les valeurs actuellement saisies (non enregistrées) dans le bloc "infos
+// complémentaires" affiché, pour ne pas les perdre lors des rafraîchissements fréquents
+// (ex: cocher un épisode pendant qu'on est en train de taper un commentaire).
+let lastRenderedDetailKey = null; // clé "film:id" ou "serie:id" de la dernière fiche affichée dans #detail-content
+
+function captureExtraDraft(fallbackItem, key){
+  if(lastRenderedDetailKey !== key) return fallbackItem; // fiche différente de celle déjà affichée : pas de brouillon à récupérer
+  const tagEl = document.getElementById('extra-tag-input');
+  if(!tagEl) return fallbackItem;
+  const commentEl = document.getElementById('extra-comment-input');
+  const links = Array.from(document.querySelectorAll('.extra-link-input')).map(i=>i.value);
+  return Object.assign({}, fallbackItem, {
+    recommande_par: tagEl.value,
+    commentaire: commentEl ? commentEl.value : fallbackItem.commentaire,
+    liens: links
+  });
+}
+
+const PRIORITY_LEVELS = {
+  low:    { label: 'Low',    symbol: '↓', rank: 1, color: 'var(--accent)' },
+  normal: { label: 'Normal', symbol: '→', rank: 2, color: 'var(--muted)' },
+  high:   { label: 'High',   symbol: '↑', rank: 3, color: 'var(--warn)' },
+  urgent: { label: 'Urgent', symbol: '⇈', rank: 4, color: 'var(--danger)' },
+};
+// Normalise la priorité d'un item : gère l'absence de valeur (par défaut Normal) et
+// les anciennes valeurs numériques (1-5) issues du précédent système à étoiles.
+function getPriority(item){
+  const p = item.priorite;
+  if(PRIORITY_LEVELS[p]) return p;
+  if(typeof p === 'number'){
+    if(p >= 5) return 'urgent';
+    if(p === 4) return 'high';
+    if(p === 3) return 'normal';
+    if(p >= 1) return 'low';
+  }
+  return 'normal';
+}
+function priorityBadgeSmall(item){
+  const level = getPriority(item);
+  const lvl = PRIORITY_LEVELS[level];
+  return `<span title="Priorité : ${lvl.label}" style="font-size:13px;color:${lvl.color};font-weight:700;">${lvl.symbol} ${lvl.label}</span>`;
+}
+function priorityIconOnly(item){
+  const level = getPriority(item);
+  const lvl = PRIORITY_LEVELS[level];
+  return `<span class="badge" style="position:static;background:rgba(0,0,0,.7);color:${lvl.color};font-size:14px;" title="Priorité : ${lvl.label}">${lvl.symbol}</span>`;
+}
+function renderPriorityWidget(item, kind){
+  const current = getPriority(item);
+  const buttons = Object.keys(PRIORITY_LEVELS).map(key=>{
+    const lvl = PRIORITY_LEVELS[key];
+    const active = key === current;
+    return `<button class="btn ${active?'':'secondary'}" style="padding:5px 10px;font-size:12px;margin-right:6px;margin-bottom:4px;${active?'':'color:'+lvl.color+';'}" onclick="setPriority('${kind}', '${item.id}', '${key}')"><span style="color:${active?'#fff':lvl.color};font-weight:700;">${lvl.symbol}</span> ${lvl.label}</button>`;
+  }).join('');
+  return `
+    <div style="margin:12px 0;">
+      <label class="field" style="margin-bottom:4px;">Priorité</label>
+      <div>${buttons}</div>
+    </div>
+  `;
+}
+function setPriority(kind, id, value){
+  if(!PRIORITY_LEVELS[value]) return;
+  if(kind === 'film'){
+    const f = state.films.find(x=>String(x.id)===String(id));
+    if(!f) return;
+    f.priorite = value;
+    saveLocalState();
+    renderFilms();
+    openFilmDetail(id);
+  } else {
+    const s = state.series.find(x=>String(x.id)===String(id));
+    if(!s) return;
+    s.priorite = value;
+    saveLocalState();
+    renderSeries();
+    renderSerieDetailModal();
+  }
+}
+
+function renderExtraInfoBlock(item, kind){
+  const links = item.liens || [];
+  const linksHtml = links.map(l => `
+    <div class="extra-link-row" style="display:flex;gap:6px;margin-bottom:6px;">
+      <input type="text" class="extra-link-input" value="${escapeHtml(l)}" style="flex:1;" placeholder="https://..." onblur="saveExtraInfo('${kind}', '${item.id}', true)" oninput="scheduleExtraInfoAutoSave('${kind}', '${item.id}')">
+      <button class="btn secondary" onclick="openExtraLink(this)" title="Ouvrir le lien">🔗</button>
+      <button class="btn secondary" onclick="removeExtraLinkRow(this, '${kind}', '${item.id}')">✕</button>
+    </div>
+  `).join('');
+  const tagsDatalist = getKnownTags().map(t => `<option value="${escapeHtml(t)}">`).join('');
+  return `
+    <h3 style="margin-top:20px;">Infos complémentaires</h3>
+    <div class="settings-note" style="margin-top:0;">Ces champs s'enregistrent automatiquement (pas besoin d'un bouton).</div>
+    <label class="field">Recommandé par</label>
+    <input type="text" id="extra-tag-input" list="extra-known-tags" style="width:100%;max-width:280px;" value="${escapeHtml(item.recommande_par||'')}" placeholder="ex: Alice" onblur="saveExtraInfo('${kind}', '${item.id}', true)" oninput="scheduleExtraInfoAutoSave('${kind}', '${item.id}')">
+    <datalist id="extra-known-tags">${tagsDatalist}</datalist>
+
+    <label class="field">Liens (site, article, bande-annonce...)</label>
+    <div id="extra-links-list">${linksHtml}</div>
+    <button class="btn secondary" onclick="addExtraLinkRow('${kind}', '${item.id}')">+ Ajouter un lien</button>
+
+    <label class="field">Commentaire</label>
+    <textarea id="extra-comment-input" rows="3" style="width:100%;max-width:420px;resize:vertical;" onblur="saveExtraInfo('${kind}', '${item.id}', true)" oninput="scheduleExtraInfoAutoSave('${kind}', '${item.id}')">${escapeHtml(item.commentaire||'')}</textarea><br>
+
+    <button class="btn secondary" style="margin-top:10px;" onclick="saveExtraInfo('${kind}', '${item.id}')">💾 Enregistrer maintenant</button>
+  `;
+}
+let extraInfoAutoSaveTimer = null;
+function scheduleExtraInfoAutoSave(kind, id){
+  clearTimeout(extraInfoAutoSaveTimer);
+  extraInfoAutoSaveTimer = setTimeout(()=> saveExtraInfo(kind, id, true), 500);
+}
+function flushExtraInfoIfPending(){
+  // Force l'enregistrement immédiat des infos complémentaires si la fiche est affichée,
+  // pour ne rien perdre à la fermeture même si le blur n'a pas eu le temps de se déclencher
+  // (cas fréquent sur mobile/iOS quand on tape rapidement puis referme).
+  clearTimeout(extraInfoAutoSaveTimer);
+  if(document.getElementById('extra-comment-input') && openDetailType && openDetailId){
+    saveExtraInfo(openDetailType, openDetailId, true);
+  }
+}
+function addExtraLinkRow(kind, id){
+  const container = document.getElementById('extra-links-list');
+  if(!container) return;
+  const row = document.createElement('div');
+  row.className = 'extra-link-row';
+  row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
+  row.innerHTML = `<input type="text" class="extra-link-input" style="flex:1;" placeholder="https://..." onblur="saveExtraInfo('${kind}', '${id}', true)" oninput="scheduleExtraInfoAutoSave('${kind}', '${id}')"><button class="btn secondary" onclick="openExtraLink(this)" title="Ouvrir le lien">🔗</button><button class="btn secondary" onclick="removeExtraLinkRow(this, '${kind}', '${id}')">✕</button>`;
+  container.appendChild(row);
+  row.querySelector('.extra-link-input').focus();
+  resizeDetailFlipToContent();
+}
+function removeExtraLinkRow(btn, kind, id){
+  btn.closest('.extra-link-row').remove();
+  resizeDetailFlipToContent();
+  if(kind && id) saveExtraInfo(kind, id, true); // la suppression d'un lien s'enregistre immédiatement
+}
+function openExtraLink(btn){
+  const input = btn.closest('.extra-link-row').querySelector('.extra-link-input');
+  const url = input.value.trim();
+  if(!url){ showToast('Aucun lien à ouvrir', 'error'); return; }
+  const finalUrl = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+  window.open(finalUrl, '_blank', 'noopener');
+}
+function saveExtraInfo(kind, id, silent){
+  const tagEl = document.getElementById('extra-tag-input');
+  const commentEl = document.getElementById('extra-comment-input');
+  if(!tagEl || !commentEl) return; // fiche pas (ou plus) affichée
+  const tag = tagEl.value.trim();
+  const comment = commentEl.value.trim();
+  const liens = Array.from(document.querySelectorAll('.extra-link-input'))
+    .map(inp => inp.value.trim())
+    .filter(v => v.length > 0);
+
+  if(kind === 'film'){
+    const f = state.films.find(x=>String(x.id)===String(id));
+    if(!f) return;
+    f.recommande_par = tag;
+    f.commentaire = comment;
+    f.liens = liens;
+    saveLocalState();
+    renderFilms();
+  } else {
+    const s = state.series.find(x=>String(x.id)===String(id));
+    if(!s) return;
+    s.recommande_par = tag;
+    s.commentaire = comment;
+    s.liens = liens;
+    saveLocalState();
+    renderSeries();
+  }
+  if(!silent) showToast('Infos enregistrées', 'success');
+}
+
+function openFilmDetail(id){
+  const f = state.films.find(x=>String(x.id)===String(id));
+  if(!f) return;
+  openDetailType = 'film';
+  openDetailId = id;
+  const key = 'film:' + id;
+  const draftItem = captureExtraDraft(f, key);
+  const html = `
+    <div class="detail-header">
+      ${f.affiche_url ? `<img src="${f.affiche_url}">` : ''}
+      <div>
+        <h2 style="margin:0 0 6px;">${escapeHtml(f.titre)} ${f.annee?`(${f.annee})`:''}</h2>
+        <div class="dh-meta">Réalisateur : ${escapeHtml(f.realisateur||'inconnu')}</div>
+        <div class="dh-meta">Genres : ${escapeHtml((f.genres||[]).join(', '))}</div>
+        <div class="dh-meta">Casting : ${escapeHtml((f.casting||[]).slice(0,6).join(', '))}</div>
+        ${f.tmdb_id ? `<div class="dh-meta"><a href="https://www.themoviedb.org/movie/${f.tmdb_id}" target="_blank">Voir sur TMDB ↗</a></div>` : ''}
+        <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(f.synopsis||'')}</p>
+        <button class="btn ${f.vu?'secondary':''}" onclick="toggleFilmWatched('${f.id}')">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button>
+        <button class="btn danger" onclick="deleteFilm('${f.id}')">Supprimer</button>
+        ${renderPriorityWidget(f, 'film')}
+        ${renderExtraInfoBlock(draftItem, 'film')}
+      </div>
+    </div>
+  `;
+  document.getElementById('detail-content').innerHTML = html;
+  lastRenderedDetailKey = key;
+  openModal('detail-modal');
+}
+function toggleFilmWatched(id, skipDetailOpen){
+  const f = state.films.find(x=>String(x.id)===String(id));
+  if(!f) return;
+  f.vu = !f.vu;
+  saveLocalState();
+  renderFilms();
+  if(!skipDetailOpen) openFilmDetail(id);
+}
+function deleteFilm(id){
+  if(!confirm('Supprimer ce film ?')) return;
+  state.films = state.films.filter(x=>String(x.id)!==String(id));
+  saveLocalState();
+  closeModal('detail-modal');
+  renderFilms();
+}
+
+/* =========================================================
+   RENDU - SERIES
+   ========================================================= */
+// Un épisode est "diffusé" s'il n'a pas de date connue (on ne peut pas savoir, donc on le
+// traite comme déjà sorti) ou si sa date de diffusion est passée ou aujourd'hui.
+function isEpisodeReleased(ep){
+  if(!ep.date_diffusion) return true;
+  const d = new Date(ep.date_diffusion);
+  if(isNaN(d.getTime())) return true;
+  const today = new Date();
+  today.setHours(23,59,59,999); // inclut les épisodes qui sortent aujourd'hui
+  return d <= today;
+}
+function unwatchedCount(serie){
+  let n=0;
+  (serie.saisons||[]).forEach(s=> s.episodes.forEach(e=>{ if(!e.vu && isEpisodeReleased(e)) n++; }));
+  return n;
+}
+function totalCount(serie){
+  let n=0;
+  (serie.saisons||[]).forEach(s=> n += s.episodes.length);
+  return n;
+}
+function getFirstUnwatchedEpisode(serie){
+  const saisons = (serie.saisons||[]).slice().sort((a,b)=>a.numero-b.numero);
+  for(const saison of saisons){
+    const episodes = saison.episodes.slice().sort((a,b)=>a.numero-b.numero);
+    for(const ep of episodes){
+      if(!ep.vu && isEpisodeReleased(ep)) return { saison: saison.numero, episode: ep };
+    }
+  }
+  return null;
+}
+
+// Durée d'un épisode en minutes : sa propre durée si connue, sinon la durée moyenne
+// de la série, sinon une estimation générique de 45 min.
+function getEpisodeDuration(ep, serie){
+  return ep.duree || serie.duree_moyenne_ep || 45;
+}
+// Somme des durées (en minutes) des épisodes non vus et déjà diffusés d'une série.
+function unwatchedDurationMinutes(serie){
+  let total = 0;
+  (serie.saisons||[]).forEach(s=> s.episodes.forEach(e=>{
+    if(!e.vu && isEpisodeReleased(e)) total += getEpisodeDuration(e, serie);
+  }));
+  return total;
+}
+// Somme des durées (en minutes) des épisodes déjà vus d'une série.
+function watchedDurationMinutes(serie){
+  let total = 0;
+  (serie.saisons||[]).forEach(s=> s.episodes.forEach(e=>{
+    if(e.vu) total += getEpisodeDuration(e, serie);
+  }));
+  return total;
+}
+// Formate une durée en minutes en texte lisible (min / h / j / semaines / mois).
+function formatDuration(totalMinutes){
+  totalMinutes = Math.round(totalMinutes);
+  if(totalMinutes <= 0) return '0 min';
+  if(totalMinutes < 60) return totalMinutes + ' min';
+  const totalHours = Math.floor(totalMinutes/60);
+  const remMin = totalMinutes % 60;
+  if(totalHours < 24) return totalHours + 'h' + (remMin ? String(remMin).padStart(2,'0') : '');
+  const totalDays = Math.floor(totalHours/24);
+  const remHours = totalHours % 24;
+  if(totalDays < 7) return totalDays + 'j' + (remHours ? ' ' + remHours + 'h' : '');
+  if(totalDays < 30){
+    const weeks = Math.floor(totalDays/7);
+    const remDays = totalDays % 7;
+    return weeks + 'sem' + (remDays ? ' ' + remDays + 'j' : '');
+  }
+  const totalMonths = Math.floor(totalDays/30);
+  const remDays = totalDays % 30;
+  return totalMonths + ' mois' + (remDays ? ' ' + remDays + 'j' : '');
+}
+// Comme formatDuration, mais ajoute une seconde ligne avec l'équivalent en heures
+// dès que le format principal est en jours/semaines/mois (donc pas déjà en h/min).
+function formatDurationWithHours(totalMinutes){
+  const main = formatDuration(totalMinutes);
+  if(totalMinutes < 60*24) return main; // déjà en minutes/heures, pas besoin de répéter
+  const totalHours = Math.round(totalMinutes/60);
+  return `${main}<div style="font-size:11px;font-weight:400;color:var(--muted);margin-top:2px;">≈ ${totalHours} h</div>`;
+}
+
+// Réutilisable : liste des prochains épisodes non vus, un par série (utilisée par
+// la vue "Épisodes" de la page Séries ET par l'onglet "À voir").
+// --- Onglet "À voir" (page dédiée regroupant Séries + Films à voir) ---
+function renderAvoirSeries(){
+  const showRecommender = !!getCfg().show_recommender;
+  let list = state.series.filter(s => s.suivie !== false);
+  list = sortList(list, 'priorite_desc', 'serie');
+  renderEpisodesQueueInto('avoir-series-container', list, showRecommender);
+}
+function renderAvoirFilms(){
+  const sortEl = document.getElementById('avoir-films-sort');
+  const sortValue = sortEl ? sortEl.value : 'priorite_desc';
+  const showRecommender = !!getCfg().show_recommender;
+  let list = state.films.filter(f => !f.vu);
+  list = sortList(list, sortValue, 'film');
+  const c = document.getElementById('avoir-films-container');
+  if(list.length === 0){
+    c.innerHTML = '<div class="empty-state">Aucun film à voir. Tout est à jour 🎉</div>';
+    return;
+  }
+  c.innerHTML = list.map(f => `
+    <div class="episode-row quick-episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;padding:12px 14px;align-items:center;">
+      ${f.affiche_url ? `<img class="list-poster" src="${f.affiche_url}">` : ''}
+      <span class="ep-title" style="cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:flex-start;" onclick="openFilmDetail('${f.id}')">
+        <span><strong>${escapeHtml(f.titre)}</strong> ${f.annee ? `(${f.annee})` : ''}</span>
+        <span style="font-size:12px;color:var(--muted);">${escapeHtml(f.realisateur||'')}</span>
+        <span style="font-size:11px;">${priorityBadgeSmall(f)}${showRecommender && f.recommande_par ? ` <span style="color:var(--accent);">· 👤 ${escapeHtml(f.recommande_par)}</span>` : ''}</span>
+      </span>
+      <button class="btn" onclick="markFilmWatchedQuick(this, '${f.id}')">✓ Vu</button>
+    </div>
+  `).join('');
+}
+function markFilmWatchedQuick(btnEl, id){
+  const f = state.films.find(x=>String(x.id)===String(id));
+  if(!f) return;
+  const row = btnEl ? btnEl.closest('.quick-episode-row') : null;
+  const applyChange = ()=>{
+    f.vu = true;
+    saveLocalState();
+    renderFilms();
+    renderAvoirFilms();
+  };
+  if(row){
+    row.classList.add('just-watched');
+    setTimeout(applyChange, 280);
+  } else {
+    applyChange();
+  }
+}
+function setAvoirTab(tab){
+  document.getElementById('avoir-tab-series').classList.toggle('active', tab==='series');
+  document.getElementById('avoir-tab-films').classList.toggle('active', tab==='films');
+  document.getElementById('avoir-series-panel').style.display = tab==='series' ? 'block' : 'none';
+  document.getElementById('avoir-films-panel').style.display = tab==='films' ? 'block' : 'none';
+  if(tab==='series') renderAvoirSeries();
+  else renderAvoirFilms();
+}
+
+// --- Sous-onglets "Ma liste" / "Découvrir" sur les pages Films et Séries ---
+function setFilmsPageTab(tab){
+  document.getElementById('films-tab-liste').classList.toggle('active', tab==='liste');
+  document.getElementById('films-tab-decouvrir').classList.toggle('active', tab==='decouvrir');
+  document.getElementById('films-liste-panel').style.display = tab==='liste' ? 'block' : 'none';
+  document.getElementById('films-decouvrir-panel').style.display = tab==='decouvrir' ? 'block' : 'none';
+  if(tab==='decouvrir'){ loadDiscoverContent(false); loadCinemaProgramme(); }
+}
+function setSeriesPageTab(tab){
+  document.getElementById('series-tab-liste').classList.toggle('active', tab==='liste');
+  document.getElementById('series-tab-decouvrir').classList.toggle('active', tab==='decouvrir');
+  document.getElementById('series-liste-panel').style.display = tab==='liste' ? 'block' : 'none';
+  document.getElementById('series-decouvrir-panel').style.display = tab==='decouvrir' ? 'block' : 'none';
+  if(tab==='decouvrir'){ loadDiscoverContent(false); }
+}
+
+function renderEpisodesQueueInto(containerId, list, showRecommender){
+  const c = document.getElementById(containerId);
+  const rows = list
+    .map(s=>({ s, next: getFirstUnwatchedEpisode(s) }))
+    .filter(r=>r.next !== null);
+  if(rows.length === 0){
+    c.innerHTML = '<div class="empty-state">Aucun épisode en attente. Tout est à jour 🎉</div>';
+    return;
+  }
+  c.innerHTML = rows.map(({s, next})=>`
+    <div class="episode-row quick-episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;padding:12px 14px;align-items:center;">
+      ${s.affiche_url ? `<img class="list-poster" src="${s.affiche_url}">` : ''}
+      <span class="ep-title" style="cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:flex-start;" onclick="openSerieDetail('${s.id}')">
+        <span><strong>${escapeHtml(s.titre)}</strong> (${unwatchedCount(s)} à voir)${showRecommender && s.recommande_par ? ` <span style="font-size:11px;color:var(--accent);">· 👤 ${escapeHtml(s.recommande_par)}</span>` : ''}</span>
+        <span style="font-size:12px;color:var(--muted);">S${next.saison} E${next.episode.numero} · ${escapeHtml(next.episode.titre||'')}</span>
+        <span style="font-size:11px;color:var(--muted);">${formatDuration(getEpisodeDuration(next.episode, s))}${next.episode.date_diffusion ? ' · ' + next.episode.date_diffusion : ''}</span>
+      </span>
+      <button class="btn" onclick="markEpisodeWatchedQuick(this, '${s.id}', ${next.saison}, ${next.episode.numero})">✓ Vu</button>
+    </div>
+  `).join('');
+}
+
+function renderSeries(){
+  const filter = document.getElementById('series-filter').value;
+  const sortValue = document.getElementById('series-sort').value;
+  const showRecommender = !!getCfg().show_recommender;
+  let list = state.series.slice();
+  if(filter === 'stopped'){
+    list = list.filter(s=>s.suivie === false);
+  } else {
+    list = list.filter(s=>s.suivie !== false); // par défaut, on masque les séries arrêtées
+    if(filter === 'unfinished') list = list.filter(s=>unwatchedCount(s) > 0);
+    if(filter === 'finished') list = list.filter(s=>unwatchedCount(s) === 0);
+  }
+  list = sortList(list, sortValue, 'serie');
+  const c = document.getElementById('series-container');
+
+  if(seriesView === 'episodes'){
+    renderEpisodesQueueInto('series-container', list, showRecommender);
+    return;
+  }
+
+  if(list.length === 0){
+    c.innerHTML = '<div class="empty-state">Aucune série ici pour le moment. Clique sur "+ Ajouter une série".</div>';
+    return;
+  }
+
+  if(seriesView === 'card'){
+    c.innerHTML = '<div class="grid">' + list.map(s=>{
+      const unw = unwatchedCount(s);
+      const stopped = s.suivie === false;
+      const badgeClass = stopped ? 'unwatched' : (unw>0?'unwatched':'watched');
+      const badgeText = stopped ? '⏸ Arrêtée' : (unw>0? unw+' à voir' : 'À jour');
+      return `
+      <div class="card" onclick="openSerieDetailFromCard(this, '${s.id}')">
+        <div style="position:absolute;top:6px;right:6px;display:flex;gap:4px;align-items:center;z-index:1;">
+          ${priorityIconOnly(s)}
+          <span class="badge ${badgeClass}" style="position:static;">${badgeText}</span>
+        </div>
+        ${s.affiche_url ? `<img src="${s.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(s.titre)}</div>`}
+        <div class="info">
+          <div class="title">${escapeHtml(s.titre)}</div>
+          <div class="year">${totalCount(s)} épisodes</div>
+          ${showRecommender && s.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(s.recommande_par)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  } else {
+    c.innerHTML = `<table><thead><tr><th></th><th>Titre</th><th>Épisodes</th><th>Non vus</th><th>Priorité</th>${showRecommender?'<th>Recommandé par</th>':''}<th>Statut</th></tr></thead><tbody>
+      ${list.map(s=>`
+        <tr onclick="openSerieDetail('${s.id}')">
+          <td>${s.affiche_url ? `<img class="list-poster" src="${s.affiche_url}">` : ''}</td>
+          <td>${escapeHtml(s.titre)}</td>
+          <td>${totalCount(s)}</td>
+          <td>${unwatchedCount(s)}</td>
+          <td>${priorityBadgeSmall(s)}</td>
+          ${showRecommender?`<td>${escapeHtml(s.recommande_par||'')}</td>`:''}
+          <td>${s.suivie === false ? '⏸ Arrêtée' : '✅ Suivie'}</td>
+        </tr>
+      `).join('')}
+    </tbody></table>`;
+  }
+}
+
+let openSeasonNumbers = new Set();
+
+function openSerieDetail(id){
+  openDetailType = 'serie';
+  openDetailId = id;
+  openSeasonNumbers = new Set();
+  renderSerieDetailModal();
+  openModal('detail-modal');
+}
+function renderSerieDetailModal(){
+  const s = state.series.find(x=>String(x.id)===String(openDetailId));
+  if(!s) return;
+  const key = 'serie:' + s.id;
+  const draftItem = captureExtraDraft(s, key);
+  const seasonsHtml = (s.saisons||[]).map(season=>{
+    const unw = season.episodes.filter(e=>!e.vu && isEpisodeReleased(e)).length;
+    const isOpen = openSeasonNumbers.has(season.numero);
+    return `
+    <div class="season-block">
+      <div class="season-head" onclick="toggleSeasonBlock(this, ${season.numero})">
+        <span>Saison ${season.numero} (${season.episodes.length} ép. — ${unw} non vus)</span>
+        <span style="display:flex;align-items:center;gap:8px;">
+          <button class="btn secondary" style="padding:4px 8px;font-size:12px;" onclick="event.stopPropagation(); markSeasonWatched('${s.id}', ${season.numero}, true)">Tout marquer vu</button>
+          <button class="btn secondary" style="padding:4px 8px;font-size:12px;" onclick="event.stopPropagation(); markSeasonWatched('${s.id}', ${season.numero}, false)">Tout marquer non vu</button>
+          <span>▾</span>
+        </span>
+      </div>
+      <div class="episodes-wrap${isOpen?' open':''}">
+        ${season.episodes.map(ep=>`
+          <div class="episode-row">
+            <input type="checkbox" ${ep.vu?'checked':''} onchange="toggleEpisode('${s.id}', ${season.numero}, ${ep.numero})">
+            <span class="ep-title">${ep.numero}. ${escapeHtml(ep.titre||'')} ${ep.nouveau?'<span class="badge new" style="position:static;">Nouveau</span>':''} ${!isEpisodeReleased(ep)?'<span class="badge" style="position:static;background:var(--panel-2);color:var(--muted);">à venir</span>':''}</span>
+            <span class="ep-date">${ep.date_diffusion||''}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('detail-content').innerHTML = `
+    <div class="detail-header">
+      ${s.affiche_url ? `<img src="${s.affiche_url}">` : ''}
+      <div>
+        <h2 style="margin:0 0 6px;">${escapeHtml(s.titre)}</h2>
+        <div class="dh-meta">Genres : ${escapeHtml((s.genres||[]).join(', '))}</div>
+        <div class="dh-meta">Casting : ${escapeHtml((s.casting||[]).slice(0,6).join(', '))}</div>
+        ${s.tmdb_id ? `<div class="dh-meta"><a href="https://www.themoviedb.org/tv/${s.tmdb_id}" target="_blank">Voir sur TMDB ↗</a></div>` : ''}
+        <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(s.synopsis||'')}</p>
+        <button class="btn" onclick="checkSeriesUpdates('${s.id}')">🔄 Vérifier les nouveaux épisodes</button>
+        <button class="btn secondary" onclick="toggleSerieTracking('${s.id}')">${s.suivie === false ? '▶️ Reprendre le suivi' : '⏸ Arrêter de suivre'}</button>
+        <button class="btn danger" onclick="deleteSerie('${s.id}')">Supprimer</button>
+        ${renderPriorityWidget(s, 'serie')}
+        ${renderExtraInfoBlock(draftItem, 'serie')}
+      </div>
+    </div>
+    <h3>Saisons</h3>
+    ${seasonsHtml}
+  `;
+  lastRenderedDetailKey = key;
+  resizeDetailFlipToContent();
+}
+function toggleSeasonBlock(headEl, seasonNum){
+  headEl.nextElementSibling.classList.toggle('open');
+  if(openSeasonNumbers.has(seasonNum)) openSeasonNumbers.delete(seasonNum);
+  else openSeasonNumbers.add(seasonNum);
+  resizeDetailFlipToContent();
+}
+function toggleEpisode(serieId, seasonNum, epNum){
+  const s = state.series.find(x=>String(x.id)===String(serieId));
+  if(!s) return;
+  const season = s.saisons.find(sx=>sx.numero===seasonNum);
+  const ep = season.episodes.find(e=>e.numero===epNum);
+  ep.vu = !ep.vu;
+  ep.nouveau = false;
+  saveLocalState();
+  openSeasonNumbers.add(seasonNum);
+  renderSerieDetailModal();
+  renderSeries();
+}
+function markEpisodeWatchedQuick(btnEl, serieId, seasonNum, epNum){
+  const s = state.series.find(x=>String(x.id)===String(serieId));
+  if(!s) return;
+  const season = s.saisons.find(sx=>sx.numero===seasonNum);
+  const ep = season?.episodes.find(e=>e.numero===epNum);
+  if(!ep) return;
+
+  const row = btnEl ? btnEl.closest('.quick-episode-row') : null;
+  const fromAvoir = !!(row && row.closest('#avoir-series-container'));
+  const applyChange = ()=>{
+    ep.vu = true;
+    ep.nouveau = false;
+    saveLocalState();
+    if(fromAvoir) renderAvoirSeries();
+    else renderSeries(); // le prochain épisode non vu prend automatiquement sa place
+  };
+
+  if(row){
+    row.classList.add('just-watched');
+    setTimeout(applyChange, 280); // laisse le temps de voir l'animation avant le remplacement
+  } else {
+    applyChange();
+  }
+}
+function deleteSerie(id){
+  if(!confirm('Supprimer cette série ?')) return;
+  state.series = state.series.filter(x=>String(x.id)!==String(id));
+  saveLocalState();
+  closeModal('detail-modal');
+  renderSeries();
+}
+function toggleSerieTracking(id){
+  const s = state.series.find(x=>String(x.id)===String(id));
+  if(!s) return;
+  s.suivie = (s.suivie === false) ? true : false;
+  saveLocalState();
+  renderSerieDetailModal();
+  renderSeries();
+  showToast(s.suivie === false ? "Suivi arrêté — la série n'apparaîtra plus dans la liste principale" : 'Suivi repris', 'success');
+}
+
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+function watchedCount(serie){
+  let n=0;
+  (serie.saisons||[]).forEach(s=> s.episodes.forEach(e=>{ if(e.vu) n++; }));
+  return n;
+}
+
+function renderDashboard(){
+  const totalFilms = state.films.length;
+  const filmsWatched = state.films.filter(f=>f.vu).length;
+  const totalSeries = state.series.length;
+  let totalEp=0, unwEp=0, unwMinutes=0, watchedMinutes=0;
+  state.series.forEach(s=>{
+    totalEp += totalCount(s);
+    unwEp += unwatchedCount(s);
+    unwMinutes += unwatchedDurationMinutes(s);
+    watchedMinutes += watchedDurationMinutes(s);
+  });
+
+  document.getElementById('stat-cards').innerHTML = `
+    <div class="stat-card"><div class="num">${filmsWatched}/${totalFilms}</div><div class="lbl">Films vus</div></div>
+    <div class="stat-card"><div class="num">${totalSeries}</div><div class="lbl">Séries suivies</div></div>
+    <div class="stat-card"><div class="num">${totalEp - unwEp}/${totalEp}</div><div class="lbl">Épisodes vus</div></div>
+    <div class="stat-card"><div class="num">${unwEp}</div><div class="lbl">Épisodes à voir</div></div>
+    <div class="stat-card"><div class="num">${formatDurationWithHours(unwMinutes)}</div><div class="lbl">Temps restant estimé</div></div>
+    <div class="stat-card"><div class="num">${formatDurationWithHours(watchedMinutes)}</div><div class="lbl">Temps regardé au total</div></div>
+  `;
+
+  // Graphique 1 : épisodes non vus
+  const unwRows = state.series
+    .filter(s => s.suivie !== false)
+    .map(s => ({ titre: s.titre, id: s.id, count: unwatchedCount(s), minutes: unwatchedDurationMinutes(s) }))
+    .filter(r => r.count > 0)
+    .sort((a,b) => b.count - a.count);
+  const unwMax = unwRows.length ? Math.max(1, unwRows[0].count) : 1;
+  const chart = document.getElementById('dash-chart');
+  if(unwRows.length===0){
+    chart.innerHTML = '<div class="empty-state">Tout est à jour 🎉</div>';
+  } else {
+    chart.innerHTML = unwRows.map(r=>`
+      <div class="dash-row" onclick="openSerieDetail('${r.id}')">
+        <div class="label">${escapeHtml(r.titre)}</div>
+        <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(6,(r.count/unwMax)*100)}%">${r.count}${r.minutes ? ' · ' + formatDuration(r.minutes) : ''}</div></div>
+      </div>
+    `).join('');
+  }
+
+  // Graphique 2 : épisodes vus
+  const watchedRows = state.series
+    .map(s => ({ titre: s.titre, id: s.id, count: watchedCount(s), minutes: watchedDurationMinutes(s) }))
+    .filter(r => r.count > 0)
+    .sort((a,b) => b.count - a.count);
+  const watchedMax = watchedRows.length ? Math.max(1, watchedRows[0].count) : 1;
+  const chartWatched = document.getElementById('dash-chart-watched');
+  if(watchedRows.length===0){
+    chartWatched.innerHTML = '<div class="empty-state">Aucun épisode vu pour le moment.</div>';
+  } else {
+    chartWatched.innerHTML = watchedRows.map(r=>`
+      <div class="dash-row" onclick="openSerieDetail('${r.id}')">
+        <div class="label">${escapeHtml(r.titre)}</div>
+        <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(6,(r.count/watchedMax)*100)}%;background:linear-gradient(90deg, var(--accent-2), var(--accent));">${r.count}${r.minutes ? ' · ' + formatDuration(r.minutes) : ''}</div></div>
+      </div>
+    `).join('');
+  }
+}
+
+/* =========================================================
+   MODALS génériques
+   ========================================================= */
+function openModal(id){
+  if(id === 'detail-modal'){ handleDetailModalOpen(); return; }
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id){
+  if(id === 'detail-modal'){ closeDetailFlip(); return; }
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(ov=>{
+  ov.addEventListener('click', (e)=>{ if(e.target === ov) ov.classList.remove('open'); });
+});
+function openAddForCurrentTab(){
+  const activeNav = document.querySelector('#main-nav button.active');
+  const view = activeNav ? activeNav.dataset.view : 'films';
+  if(view === 'series') openSearchModal('tv');
+  else openSearchModal('movie'); // par défaut (films, dashboard, ou paramètres) on propose d'ajouter un film
+}
+
+/* Filet de sécurité : force l'enregistrement des infos complémentaires en cours de
+   frappe si l'app passe en arrière-plan (changement d'app, verrouillage d'écran...),
+   un cas fréquent sur mobile où le clavier ne déclenche pas toujours un blur propre. */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) flushExtraInfoIfPending();
+});
+window.addEventListener('pagehide', flushExtraInfoIfPending);
+
+/* =========================================================
+   RACCOURCIS CLAVIER
+   N : nouveau film / série (selon l'onglet actif)
+   V : marquer vu / non vu (fiche film ouverte)
+   Echap : fermer la fenêtre ouverte
+   ========================================================= */
+document.addEventListener('keydown', (e)=>{
+  const tag = (e.target.tagName || '').toLowerCase();
+  const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
+
+  if(e.key === 'Escape'){
+    document.querySelectorAll('.modal-overlay.open').forEach(ov=>ov.classList.remove('open'));
+    if(detailFlipOpen) closeDetailFlip();
+    return;
+  }
+
+  if(typing) return; // on ne déclenche jamais N/V pendant une saisie
+
+  if(e.key === 'n' || e.key === 'N'){
+    const activeNav = document.querySelector('#main-nav button.active');
+    if(!activeNav) return;
+    e.preventDefault();
+    openAddForCurrentTab();
+  }
+
+  if(e.key === 'v' || e.key === 'V'){
+    if(!detailFlipOpen || !openDetailId) return;
+    if(openDetailType === 'film'){
+      e.preventDefault();
+      toggleFilmWatched(openDetailId);
+    }
+  }
+});
+
+/* =========================================================
+   TMDB - RECHERCHE ET AJOUT
+   ========================================================= */
+const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
+
+function openSearchModal(type){
+  currentSearchType = type;
+  document.getElementById('search-modal-title').textContent = type==='movie' ? 'Rechercher un film' : 'Rechercher une série';
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-results').innerHTML = '';
+  document.getElementById('tmdb-link-input').value = '';
+  openModal('search-modal');
+  document.getElementById('search-input').focus();
+}
+document.getElementById('search-input').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') doSearch();
+});
+document.getElementById('tmdb-link-input').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') addFromTmdbLink();
+});
+
+async function doSearch(){
+  const cfg = getCfg();
+  if(!cfg.tmdb_key){
+    showToast('Configure ta clé API TMDB dans les Paramètres', 'error');
+    return;
+  }
+  const query = document.getElementById('search-input').value.trim();
+  if(!query) return;
+  const resultsEl = document.getElementById('search-results');
+  resultsEl.innerHTML = 'Recherche en cours...';
+  try{
+    const url = `https://api.themoviedb.org/3/search/${currentSearchType}?api_key=${cfg.tmdb_key}&language=fr-FR&query=${encodeURIComponent(query)}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('Erreur TMDB ('+res.status+')');
+    const data = await res.json();
+    if(!data.results || data.results.length===0){
+      resultsEl.innerHTML = '<div class="empty-state">Aucun résultat</div>';
+      return;
+    }
+    lastSearchResults = data.results.slice(0,10);
+    resultsEl.innerHTML = lastSearchResults.map((r, idx)=>{
+      const title = currentSearchType==='movie' ? r.title : r.name;
+      const date = currentSearchType==='movie' ? r.release_date : r.first_air_date;
+      const year = date ? date.substring(0,4) : '';
+      const poster = r.poster_path ? TMDB_IMG + r.poster_path : '';
+      const overview = r.overview ? escapeHtml(r.overview) : 'Pas de résumé disponible.';
+      return `
+        <div class="search-result" style="flex-direction:column;align-items:stretch;">
+          <div style="display:flex;gap:12px;align-items:center;">
+            ${poster ? `<img src="${poster}">` : `<div style="width:46px;height:69px;background:var(--panel-2);border-radius:4px;"></div>`}
+            <div class="sr-info" style="cursor:pointer;" onclick="toggleSearchOverview(${idx})">
+              <div class="sr-title">${escapeHtml(title)} <span style="color:var(--muted);font-weight:400;">(résumé ▾)</span></div>
+              <div class="sr-year">${year}</div>
+            </div>
+            <button class="btn" onclick="addFromTmdb(${r.id})">Ajouter</button>
+          </div>
+          <div id="sr-overview-${idx}" style="display:none;font-size:12px;color:var(--muted);margin-top:8px;padding-left:58px;">${overview}</div>
+        </div>
+      `;
+    }).join('');
+  }catch(err){
+    resultsEl.innerHTML = '<div class="empty-state">Erreur : '+escapeHtml(err.message)+'</div>';
+  }
+}
+function toggleSearchOverview(idx){
+  const el = document.getElementById('sr-overview-' + idx);
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function parseTmdbLink(input){
+  // Formats acceptés : https://www.themoviedb.org/movie/12345-titre, /tv/12345-titre, ou juste l'ID
+  const match = input.match(/themoviedb\.org\/(movie|tv)\/(\d+)/);
+  if(match) return { type: match[1], id: parseInt(match[2], 10) };
+  if(/^\d+$/.test(input.trim())) return { type: currentSearchType, id: parseInt(input.trim(), 10) };
+  return null;
+}
+async function addFromTmdbLink(){
+  const cfg = getCfg();
+  if(!cfg.tmdb_key){
+    showToast('Configure ta clé API TMDB dans les Paramètres', 'error');
+    return;
+  }
+  const raw = document.getElementById('tmdb-link-input').value.trim();
+  if(!raw) return;
+  const parsed = parseTmdbLink(raw);
+  if(!parsed){
+    showToast('Lien TMDB non reconnu. Format attendu : https://www.themoviedb.org/movie/12345-titre', 'error');
+    return;
+  }
+  currentSearchType = parsed.type;
+  await addFromTmdb(parsed.id);
+}
+
+async function addFromTmdb(tmdbId){
+  const cfg = getCfg();
+  showToast('Récupération des informations...', '');
+  try{
+    if(currentSearchType === 'movie'){
+      const url = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${cfg.tmdb_key}&language=fr-FR&append_to_response=credits,external_ids`;
+      const res = await fetch(url);
+      const d = await res.json();
+      const director = (d.credits?.crew||[]).find(c=>c.job==='Director');
+      const film = {
+        id: 'm'+d.id,
+        tmdb_id: d.id,
+        imdb_id: d.external_ids?.imdb_id || null,
+        titre: d.title,
+        annee: d.release_date ? d.release_date.substring(0,4) : null,
+        realisateur: director ? director.name : '',
+        affiche_url: d.poster_path ? TMDB_IMG + d.poster_path : '',
+        synopsis: d.overview || '',
+        genres: (d.genres||[]).map(g=>g.name),
+        casting: (d.credits?.cast||[]).slice(0,10).map(c=>c.name),
+        vu: false,
+        priorite: 'normal',
+        date_ajout: new Date().toISOString()
+      };
+      if(state.films.find(f=>f.tmdb_id===d.id)){
+        showToast('Ce film est déjà dans ta liste', 'error');
+        return;
+      }
+      state.films.push(film);
+      saveLocalState();
+      renderFilms();
+      showToast('Film ajouté : ' + film.titre, 'success');
+      closeModal('search-modal');
+    } else {
+      const url = `https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${cfg.tmdb_key}&language=fr-FR&append_to_response=credits,external_ids`;
+      const res = await fetch(url);
+      const d = await res.json();
+      if(state.series.find(s=>s.tmdb_id===d.id)){
+        showToast('Cette série est déjà dans ta liste', 'error');
+        return;
+      }
+      const saisons = [];
+      for(const season of (d.seasons||[])){
+        if(season.season_number === 0) continue; // on saute les "Spécials" par défaut
+        const seasonUrl = `https://api.themoviedb.org/3/tv/${tmdbId}/season/${season.season_number}?api_key=${cfg.tmdb_key}&language=fr-FR`;
+        const sres = await fetch(seasonUrl);
+        const sd = await sres.json();
+        saisons.push({
+          numero: season.season_number,
+          episodes: (sd.episodes||[]).map(ep=>({
+            numero: ep.episode_number,
+            titre: ep.name,
+            date_diffusion: ep.air_date,
+            duree: ep.runtime || null,
+            vu: false,
+            nouveau: false
+          }))
+        });
+      }
+      const dureeMoyenne = (d.episode_run_time && d.episode_run_time.length)
+        ? Math.round(d.episode_run_time.reduce((a,b)=>a+b,0) / d.episode_run_time.length)
+        : null;
+      const serie = {
+        id: 's'+d.id,
+        tmdb_id: d.id,
+        imdb_id: d.external_ids?.imdb_id || null,
+        titre: d.name,
+        annee: d.first_air_date ? d.first_air_date.substring(0,4) : null,
+        createur: (d.created_by||[]).map(c=>c.name).join(', '),
+        affiche_url: d.poster_path ? TMDB_IMG + d.poster_path : '',
+        synopsis: d.overview || '',
+        genres: (d.genres||[]).map(g=>g.name),
+        casting: (d.credits?.cast||[]).slice(0,10).map(c=>c.name),
+        date_ajout: new Date().toISOString(),
+        suivie: true,
+        priorite: 'normal',
+        duree_moyenne_ep: dureeMoyenne,
+        saisons
+      };
+      state.series.push(serie);
+      saveLocalState();
+      renderSeries();
+      showToast('Série ajoutée : ' + serie.titre, 'success');
+      closeModal('search-modal');
+    }
+  }catch(err){
+    showToast("Erreur lors de l'ajout : " + err.message, 'error');
+  }
+}
+
+// Coeur de la vérification pour UNE série. Ne fait ni toast ni rendu : c'est à l'appelant de le faire.
+// Retourne le nombre de nouveaux épisodes trouvés.
+async function fetchSeriesUpdates(s, cfg){
+  const url = `https://api.themoviedb.org/3/tv/${s.tmdb_id}?api_key=${cfg.tmdb_key}&language=fr-FR`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Erreur TMDB (' + res.status + ') pour "' + s.titre + '"');
+  const d = await res.json();
+  if(d.episode_run_time && d.episode_run_time.length){
+    s.duree_moyenne_ep = Math.round(d.episode_run_time.reduce((a,b)=>a+b,0) / d.episode_run_time.length);
+  }
+  let newCount = 0;
+  for(const season of (d.seasons||[])){
+    if(season.season_number === 0) continue;
+    let localSeason = s.saisons.find(sx=>sx.numero===season.season_number);
+    const seasonUrl = `https://api.themoviedb.org/3/tv/${s.tmdb_id}/season/${season.season_number}?api_key=${cfg.tmdb_key}&language=fr-FR`;
+    const sres = await fetch(seasonUrl);
+    const sd = await sres.json();
+    if(!localSeason){
+      localSeason = { numero: season.season_number, episodes: [] };
+      s.saisons.push(localSeason);
+    }
+    (sd.episodes||[]).forEach(ep=>{
+      const exists = localSeason.episodes.find(e=>e.numero===ep.episode_number);
+      if(!exists){
+        localSeason.episodes.push({
+          numero: ep.episode_number,
+          titre: ep.name,
+          date_diffusion: ep.air_date,
+          duree: ep.runtime || null,
+          vu: false,
+          nouveau: true
+        });
+        newCount++;
+      } else if(exists.duree == null && ep.runtime){
+        exists.duree = ep.runtime; // complète la durée si elle manquait
+      }
+    });
+    localSeason.episodes.sort((a,b)=>a.numero-b.numero);
+  }
+  s.saisons.sort((a,b)=>a.numero-b.numero);
+  return newCount;
+}
+
+async function checkSeriesUpdates(serieId){
+  const cfg = getCfg();
+  const s = state.series.find(x=>String(x.id)===String(serieId));
+  if(!s) return;
+  showToast('Vérification des nouveautés...', '');
+  try{
+    const newCount = await fetchSeriesUpdates(s, cfg);
+    saveLocalState();
+    renderSerieDetailModal();
+    renderSeries();
+    showToast(newCount>0 ? `${newCount} nouvel(aux) épisode(s) trouvé(s)` : 'Aucun nouvel épisode', newCount>0?'success':'');
+  }catch(err){
+    showToast('Erreur : ' + err.message, 'error');
+  }
+}
+
+async function checkAllSeriesUpdates(){
+  const cfg = getCfg();
+  if(!cfg.tmdb_key){
+    showToast('Configure ta clé API TMDB dans les Paramètres', 'error');
+    return;
+  }
+  if(state.series.length === 0){
+    showToast('Aucune série à vérifier', '');
+    return;
+  }
+  const btn = document.getElementById('btn-check-all');
+  if(btn){ btn.disabled = true; btn.textContent = '🔄 Vérification en cours...'; }
+  let totalNew = 0;
+  let errors = 0;
+  for(const s of state.series){
+    try{
+      totalNew += await fetchSeriesUpdates(s, cfg);
+    }catch(err){
+      errors++;
+    }
+  }
+  saveLocalState();
+  renderSeries();
+  if(openDetailId) renderSerieDetailModal();
+  if(btn){ btn.disabled = false; btn.textContent = '🔄 Vérifier toutes les séries'; }
+  let msg = totalNew>0 ? `${totalNew} nouvel(aux) épisode(s) au total` : 'Aucun nouvel épisode';
+  if(errors>0) msg += ` (${errors} série(s) en erreur)`;
+  showToast(msg, totalNew>0?'success':(errors>0?'error':''));
+}
+
+async function refreshAllMetadata(){
+  const cfg = getCfg();
+  if(!cfg.tmdb_key){
+    showToast('Configure ta clé API TMDB dans les Paramètres', 'error');
+    return;
+  }
+  const total = state.films.length + state.series.length;
+  if(total === 0){
+    showToast('Aucune fiche à rafraîchir', '');
+    return;
+  }
+  const btn = document.getElementById('btn-refresh-metadata');
+  if(btn){ btn.disabled = true; btn.textContent = '🔄 Rafraîchissement en cours...'; }
+  let updated = 0, errors = 0;
+
+  for(const f of state.films){
+    try{
+      const url = `https://api.themoviedb.org/3/movie/${f.tmdb_id}?api_key=${cfg.tmdb_key}&language=fr-FR&append_to_response=credits,external_ids`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('Erreur ' + res.status);
+      const d = await res.json();
+      const director = (d.credits?.crew||[]).find(c=>c.job==='Director');
+      f.titre = d.title || f.titre;
+      f.annee = d.release_date ? d.release_date.substring(0,4) : f.annee;
+      f.realisateur = director ? director.name : f.realisateur;
+      f.affiche_url = d.poster_path ? TMDB_IMG + d.poster_path : f.affiche_url;
+      f.synopsis = d.overview || f.synopsis;
+      f.genres = (d.genres||[]).map(g=>g.name);
+      f.casting = (d.credits?.cast||[]).slice(0,10).map(c=>c.name);
+      f.imdb_id = d.external_ids?.imdb_id || f.imdb_id;
+      updated++;
+    }catch(err){
+      errors++;
+    }
+  }
+
+  for(const s of state.series){
+    try{
+      const url = `https://api.themoviedb.org/3/tv/${s.tmdb_id}?api_key=${cfg.tmdb_key}&language=fr-FR&append_to_response=credits,external_ids`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('Erreur ' + res.status);
+      const d = await res.json();
+      s.titre = d.name || s.titre;
+      s.annee = d.first_air_date ? d.first_air_date.substring(0,4) : s.annee;
+      const createur = (d.created_by||[]).map(c=>c.name).join(', ');
+      if(createur) s.createur = createur;
+      s.affiche_url = d.poster_path ? TMDB_IMG + d.poster_path : s.affiche_url;
+      s.synopsis = d.overview || s.synopsis;
+      s.genres = (d.genres||[]).map(g=>g.name);
+      s.casting = (d.credits?.cast||[]).slice(0,10).map(c=>c.name);
+      s.imdb_id = d.external_ids?.imdb_id || s.imdb_id;
+      if(d.episode_run_time && d.episode_run_time.length){
+        s.duree_moyenne_ep = Math.round(d.episode_run_time.reduce((a,b)=>a+b,0) / d.episode_run_time.length);
+      }
+      if(s.suivie === undefined) s.suivie = true;
+      updated++;
+    }catch(err){
+      errors++;
+    }
+  }
+
+  saveLocalState();
+  renderFilms();
+  renderSeries();
+  if(openDetailId) renderSerieDetailModal();
+  if(btn){ btn.disabled = false; btn.textContent = '🔄 Rafraîchir les métadonnées (films & séries)'; }
+  let msg = `${updated} fiche(s) mise(s) à jour`;
+  if(errors>0) msg += ` (${errors} en erreur)`;
+  showToast(msg, errors>0 && updated===0 ? 'error' : 'success');
+}
+
+/* =========================================================
+   DECOUVRIR - recommandations TMDB (sorties, tendances, notes)
+   ========================================================= */
+let discoverLoaded = false;
+let discoverData = { nowPlaying: [], trendingMovies: [], trendingTv: [], onAir: [] };
+
+// sortBy : 'vote' (note décroissante, défaut), 'date' (sortie la plus récente en premier,
+// pour "au cinéma" où la fraîcheur prime sur la note), ou 'popularity' (on garde l'ordre
+// renvoyé par TMDB, déjà classé par tendance/pertinence — ne pas re-trier par note ici).
+async function fetchTmdbList(url, sortBy){
+  sortBy = sortBy || 'vote';
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Erreur TMDB (' + res.status + ')');
+  const data = await res.json();
+  let results = data.results || [];
+
+  if(sortBy === 'popularity'){
+    return results.slice(0, 12);
+  }
+
+  const minVotes = sortBy === 'date' ? 3 : 20; // les sorties très récentes ont peu de votes, seuil plus bas
+  let filtered = results.filter(r => (r.vote_count||0) >= minVotes);
+  if(filtered.length < 4) filtered = results; // évite une section vide si peu de votes
+
+  if(sortBy === 'date'){
+    filtered = filtered.slice().sort((a,b) => {
+      const da = a.release_date || a.first_air_date || '';
+      const db = b.release_date || b.first_air_date || '';
+      return db.localeCompare(da); // le plus récent en premier
+    });
+  } else {
+    filtered = filtered.slice().sort((a,b) => (b.vote_average||0) - (a.vote_average||0));
+  }
+  return filtered.slice(0, 12);
+}
+
+function renderDiscoverLoading(){
+  ['discover-now-playing','discover-trending-movies','discover-trending-tv','discover-on-air'].forEach(id=>{
+    document.getElementById(id).innerHTML = '<div class="empty-state">Chargement...</div>';
+  });
+}
+
+async function loadDiscoverContent(force){
+  if(discoverLoaded && !force) return;
+  const cfg = getCfg();
+  if(!cfg.tmdb_key){
+    showToast('Configure ta clé API TMDB dans les Paramètres', 'error');
+    return;
+  }
+  renderDiscoverLoading();
+  try{
+    const [nowPlaying, trendingMovies, trendingTv, onAir] = await Promise.all([
+      fetchTmdbList(`https://api.themoviedb.org/3/movie/now_playing?api_key=${cfg.tmdb_key}&language=fr-FR&region=FR&page=1`, 'date'),
+      fetchTmdbList(`https://api.themoviedb.org/3/trending/movie/week?api_key=${cfg.tmdb_key}&language=fr-FR`, 'popularity'),
+      fetchTmdbList(`https://api.themoviedb.org/3/trending/tv/week?api_key=${cfg.tmdb_key}&language=fr-FR`, 'popularity'),
+      fetchTmdbList(`https://api.themoviedb.org/3/tv/on_the_air?api_key=${cfg.tmdb_key}&language=fr-FR`, 'vote')
+    ]);
+    discoverData = { nowPlaying, trendingMovies, trendingTv, onAir };
+    renderDiscoverSection('discover-now-playing', nowPlaying, 'movie');
+    renderDiscoverSection('discover-trending-movies', trendingMovies, 'movie');
+    renderDiscoverSection('discover-trending-tv', trendingTv, 'tv');
+    renderDiscoverSection('discover-on-air', onAir, 'tv');
+    discoverLoaded = true;
+  }catch(err){
+    showToast('Erreur lors du chargement des recommandations : ' + err.message, 'error');
+  }
+}
+
+function renderDiscoverSection(containerId, items, type){
+  const c = document.getElementById(containerId);
+  if(!items || items.length===0){
+    c.innerHTML = '<div class="empty-state">Rien à afficher pour le moment.</div>';
+    return;
+  }
+  c.innerHTML = items.map(r=>{
+    const title = type==='movie' ? r.title : r.name;
+    const dateStr = type==='movie' ? r.release_date : r.first_air_date;
+    const year = dateStr ? dateStr.substring(0,4) : '';
+    const poster = r.poster_path ? TMDB_IMG + r.poster_path : '';
+    const note = r.vote_average ? r.vote_average.toFixed(1) : '?';
+    const alreadyAdded = type==='movie'
+      ? state.films.some(f=>f.tmdb_id===r.id)
+      : state.series.some(s=>s.tmdb_id===r.id);
+    return `
+      <div class="discover-card" style="cursor:pointer;" onclick="openDiscoverDetail(event, ${r.id}, '${type}')">
+        <div style="position:relative;">
+          <span class="note-badge">★ ${note}</span>
+          ${poster ? `<img src="${poster}" alt="">` : `<div class="no-poster">${escapeHtml(title)}</div>`}
+        </div>
+        <div class="info">
+          <div class="title">${escapeHtml(title)}</div>
+          <div class="meta">${year}</div>
+          ${alreadyAdded
+            ? `<button class="btn secondary" disabled style="opacity:.6;">Déjà dans ta liste</button>`
+            : `<button class="btn" onclick="event.stopPropagation(); quickAddFromDiscover(${r.id}, '${type}')">+ Ajouter</button>`}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function quickAddFromDiscover(tmdbId, type){
+  currentSearchType = type;
+  await addFromTmdb(tmdbId);
+  renderDiscoverSection('discover-now-playing', discoverData.nowPlaying, 'movie');
+  renderDiscoverSection('discover-trending-movies', discoverData.trendingMovies, 'movie');
+  renderDiscoverSection('discover-trending-tv', discoverData.trendingTv, 'tv');
+  renderDiscoverSection('discover-on-air', discoverData.onAir, 'tv');
+}
+
+function findDiscoverItem(tmdbId, type){
+  const pools = type === 'movie' ? [discoverData.nowPlaying, discoverData.trendingMovies] : [discoverData.trendingTv, discoverData.onAir];
+  for(const pool of pools){
+    const found = (pool||[]).find(x => x.id === tmdbId);
+    if(found) return found;
+  }
+  return null;
+}
+
+function buildDiscoverDetailHtml(r, type){
+  const title = type === 'movie' ? r.title : r.name;
+  const dateStr = type === 'movie' ? r.release_date : r.first_air_date;
+  const year = dateStr ? dateStr.substring(0,4) : '';
+  const poster = r.poster_path ? TMDB_IMG + r.poster_path : '';
+  const note = r.vote_average ? r.vote_average.toFixed(1) : '?';
+  const alreadyAdded = type === 'movie'
+    ? state.films.some(f=>f.tmdb_id===r.id)
+    : state.series.some(s=>s.tmdb_id===r.id);
+  const tmdbUrl = `https://www.themoviedb.org/${type}/${r.id}`;
+
+  return `
+    <button class="close-x" onclick="closeCardFlip()">✕</button>
+    <div class="detail-header">
+      ${poster ? `<img src="${poster}">` : ''}
+      <div>
+        <h2 style="margin:0 0 6px;">${escapeHtml(title)} ${year ? `(${year})` : ''}</h2>
+        <div class="dh-meta">★ ${note} · <a href="${tmdbUrl}" target="_blank">Voir sur TMDB ↗</a></div>
+        <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(r.overview || 'Pas de résumé disponible.')}</p>
+        ${alreadyAdded
+          ? `<button class="btn secondary" disabled style="opacity:.6;">Déjà dans ta liste</button>`
+          : `<button class="btn" onclick="quickAddFromDiscover(${r.id}, '${type}').then(closeCardFlip)">+ Ajouter</button>`}
+      </div>
+    </div>
+  `;
+}
+
+function openDiscoverDetail(e, tmdbId, type){
+  const cardEl = e.currentTarget;
+  const r = findDiscoverItem(tmdbId, type);
+  if(!r) return;
+  startCardFlip(cardEl, buildDiscoverDetailHtml(r, type));
+}
+
+/* =========================================================
+   ANIMATION "FLIP & GROW" carte -> fenêtre détail
+   (test initial sur l'onglet Découvrir)
+   ========================================================= */
+let activeFlip = null;
+
+// Mesure la hauteur naturelle du contenu (hors écran, invisible) à la largeur cible,
+// pour que la fenêtre s'ajuste au contenu réel plutôt que d'imposer une hauteur fixe.
+function measureBackContentHeight(backHtml, width){
+  const probe = document.createElement('div');
+  probe.style.cssText = `position:fixed;visibility:hidden;top:-9999px;left:-9999px;width:${width}px;box-sizing:border-box;padding:20px;overflow:visible;`;
+  probe.innerHTML = backHtml;
+  document.body.appendChild(probe);
+  const h = probe.scrollHeight;
+  probe.remove();
+  return h;
+}
+
+function startCardFlip(cardEl, backHtml){
+  if(activeFlip) return; // une animation à la fois
+  const rect = cardEl.getBoundingClientRect();
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'flip-backdrop';
+  backdrop.onclick = closeCardFlip;
+  document.body.appendChild(backdrop);
+
+  const card = document.createElement('div');
+  card.className = 'flip-card';
+  card.style.top = rect.top + 'px';
+  card.style.left = rect.left + 'px';
+  card.style.width = rect.width + 'px';
+  card.style.height = rect.height + 'px';
+  card.innerHTML = `
+    <div class="flip-inner">
+      <div class="flip-face front discover-card">${cardEl.innerHTML}</div>
+      <div class="flip-face back">${backHtml}</div>
+    </div>
+  `;
+  document.body.appendChild(card);
+  cardEl.style.visibility = 'hidden';
+
+  const targetW = Math.min(window.innerWidth - 32, 700);
+  const maxH = Math.min(window.innerHeight - 40, window.innerHeight * 0.9);
+  const naturalH = measureBackContentHeight(backHtml, targetW);
+  const targetH = Math.max(180, Math.min(naturalH, maxH));
+
+  const margin = 16;
+  const cardCenterX = rect.left + rect.width / 2;
+  const cardCenterY = rect.top + rect.height / 2;
+  const maxLeft = Math.max(margin, window.innerWidth - targetW - margin);
+  const maxTop = Math.max(margin, window.innerHeight - targetH - margin);
+  const targetLeft = Math.min(Math.max(cardCenterX - targetW / 2, margin), maxLeft);
+  const targetTop = Math.min(Math.max(cardCenterY - targetH / 2, margin), maxTop);
+
+  // Forcer un reflow avant de changer les valeurs cibles, pour que la transition CSS se déclenche
+  card.getBoundingClientRect();
+
+  requestAnimationFrame(()=>{
+    backdrop.classList.add('show');
+    card.style.top = targetTop + 'px';
+    card.style.left = targetLeft + 'px';
+    card.style.width = targetW + 'px';
+    card.style.height = targetH + 'px';
+    card.querySelector('.flip-inner').classList.add('flipped');
+  });
+  // Filet de sécurité pour Safari iOS : "backface-visibility:hidden" est peu fiable
+  // sur les éléments avec "overflow" défini, ce qui peut laisser la face avant
+  // visible en miroir. On la masque explicitement une fois le flip terminé.
+  const front = card.querySelector('.flip-face.front');
+  setTimeout(()=>{ if(front) front.style.visibility = 'hidden'; }, 520);
+
+  activeFlip = { card, backdrop, cardEl, rect };
+  document.addEventListener('keydown', flipEscHandler);
+}
+
+function closeCardFlip(){
+  if(!activeFlip) return;
+  const { card, backdrop, cardEl, rect } = activeFlip;
+  const front = card.querySelector('.flip-face.front');
+  if(front) front.style.visibility = ''; // on la rend de nouveau visible avant de la faire réapparaître en tournant
+  card.style.top = rect.top + 'px';
+  card.style.left = rect.left + 'px';
+  card.style.width = rect.width + 'px';
+  card.style.height = rect.height + 'px';
+  card.querySelector('.flip-inner').classList.remove('flipped');
+  backdrop.classList.remove('show');
+
+  const cleanup = ()=>{
+    card.remove();
+    backdrop.remove();
+    if(cardEl && cardEl.isConnected) cardEl.style.visibility = '';
+    document.removeEventListener('keydown', flipEscHandler);
+    activeFlip = null;
+  };
+  card.addEventListener('transitionend', cleanup, { once:true });
+  setTimeout(cleanup, 600); // filet de sécurité si transitionend ne se déclenche pas
+}
+
+function flipEscHandler(ev){
+  if(ev.key === 'Escape') closeCardFlip();
+}
+
+/* =========================================================
+   FLIP DETAIL (fiches Films / Séries, contenu vivant)
+   Réutilise le même principe que le flip Découvrir, mais anime
+   un conteneur persistant (#detail-flip-card) dont le contenu
+   (#detail-content) continue d'être mis à jour par le code existant
+   (renderSerieDetailModal, toggleEpisode, etc.) sans rien casser.
+   ========================================================= */
+let pendingFlipSourceEl = null; // carte source, posée juste avant l'ouverture
+let detailFlipOpen = false;
+let detailFlipSourceRect = null;
+let detailFlipSourceEl = null;
+
+function handleDetailModalOpen(){
+  if(detailFlipOpen){
+    // La fiche est déjà ouverte : c'est un re-rendu (coche, accordéon...) → juste un ajustement de taille
+    pendingFlipSourceEl = null;
+    resizeDetailFlipToContent();
+    return;
+  }
+  const sourceEl = pendingFlipSourceEl;
+  pendingFlipSourceEl = null;
+  startDetailFlip(sourceEl);
+}
+
+function startDetailFlip(sourceEl){
+  const card = document.getElementById('detail-flip-card');
+  const front = document.getElementById('detail-flip-front');
+  const backWrap = document.getElementById('detail-flip-back');
+  const inner = document.getElementById('detail-flip-inner');
+  const backdrop = document.getElementById('detail-flip-backdrop');
+
+  let rect;
+  if(sourceEl){
+    rect = sourceEl.getBoundingClientRect();
+    front.innerHTML = sourceEl.innerHTML;
+    sourceEl.style.visibility = 'hidden';
+  } else {
+    const w = 120, h = 180;
+    rect = { left:(window.innerWidth-w)/2, top:(window.innerHeight-h)/2, width:w, height:h };
+    front.innerHTML = '';
+  }
+
+  card.style.display = 'block';
+  backdrop.style.display = 'block';
+  front.style.visibility = ''; // réinitialise un éventuel masquage laissé par une ouverture précédente
+  card.style.top = rect.top + 'px';
+  card.style.left = rect.left + 'px';
+  card.style.width = rect.width + 'px';
+  card.style.height = rect.height + 'px';
+  inner.classList.remove('flipped');
+
+  card.getBoundingClientRect(); // forcer un reflow avant transition
+
+  const targetW = Math.min(window.innerWidth - 32, 700);
+  const naturalH = measureBackContentHeight(backWrap.innerHTML, targetW);
+  const maxH = Math.min(window.innerHeight - 40, window.innerHeight * 0.9);
+  const targetH = Math.max(180, Math.min(naturalH, maxH));
+
+  const margin = 16;
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const maxLeft = Math.max(margin, window.innerWidth - targetW - margin);
+  const maxTop = Math.max(margin, window.innerHeight - targetH - margin);
+  const targetLeft = Math.min(Math.max(centerX - targetW / 2, margin), maxLeft);
+  const targetTop = Math.min(Math.max(centerY - targetH / 2, margin), maxTop);
+
+  requestAnimationFrame(()=>{
+    backdrop.classList.add('show');
+    card.style.top = targetTop + 'px';
+    card.style.left = targetLeft + 'px';
+    card.style.width = targetW + 'px';
+    card.style.height = targetH + 'px';
+    inner.classList.add('flipped');
+  });
+  // Filet de sécurité Safari iOS (voir startCardFlip) : masque la face avant
+  // une fois le flip terminé, au cas où "backface-visibility" ne suffise pas.
+  setTimeout(()=>{ front.style.visibility = 'hidden'; }, 520);
+
+  detailFlipOpen = true;
+  detailFlipSourceRect = rect;
+  detailFlipSourceEl = sourceEl;
+}
+
+function resizeDetailFlipToContent(){
+  if(!detailFlipOpen) return;
+  const card = document.getElementById('detail-flip-card');
+  const backWrap = document.getElementById('detail-flip-back');
+  const currentRect = card.getBoundingClientRect();
+  const naturalH = measureBackContentHeight(backWrap.innerHTML, currentRect.width);
+  const maxH = Math.min(window.innerHeight - 40, window.innerHeight * 0.9);
+  const targetH = Math.max(180, Math.min(naturalH, maxH));
+  const margin = 16;
+  const centerY = currentRect.top + currentRect.height / 2;
+  const maxTop = Math.max(margin, window.innerHeight - targetH - margin);
+  const targetTop = Math.min(Math.max(centerY - targetH / 2, margin), maxTop);
+  card.style.height = targetH + 'px';
+  card.style.top = targetTop + 'px';
+}
+
+function closeDetailFlip(){
+  if(!detailFlipOpen) return;
+  flushExtraInfoIfPending();
+  const card = document.getElementById('detail-flip-card');
+  const front = document.getElementById('detail-flip-front');
+  const inner = document.getElementById('detail-flip-inner');
+  const backdrop = document.getElementById('detail-flip-backdrop');
+  const rect = detailFlipSourceRect;
+
+  if(front) front.style.visibility = ''; // on la rend de nouveau visible avant de la faire réapparaître en tournant
+  if(rect){
+    card.style.top = rect.top + 'px';
+    card.style.left = rect.left + 'px';
+    card.style.width = rect.width + 'px';
+    card.style.height = rect.height + 'px';
+  }
+  inner.classList.remove('flipped');
+  backdrop.classList.remove('show');
+
+  const sourceEl = detailFlipSourceEl;
+  const cleanup = ()=>{
+    card.style.display = 'none';
+    backdrop.style.display = 'none';
+    if(sourceEl && sourceEl.isConnected) sourceEl.style.visibility = '';
+    detailFlipOpen = false;
+    detailFlipSourceRect = null;
+    detailFlipSourceEl = null;
+    lastRenderedDetailKey = null;
+  };
+  card.addEventListener('transitionend', cleanup, { once:true });
+  setTimeout(cleanup, 600);
+}
+
+function openFilmDetailFromCard(cardEl, id){
+  pendingFlipSourceEl = cardEl;
+  openFilmDetail(id);
+}
+function openSerieDetailFromCard(cardEl, id){
+  pendingFlipSourceEl = cardEl;
+  openSerieDetail(id);
+}
+
+function parseRssItems(xmlText){
+  try{
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'application/xml');
+    if(doc.querySelector('parsererror')) return [];
+    return Array.from(doc.querySelectorAll('item')).map(it=>({
+      title: it.querySelector('title')?.textContent || '',
+      link: it.querySelector('link')?.textContent || '#',
+      pubDate: it.querySelector('pubDate')?.textContent || ''
+    }));
+  }catch(e){
+    return [];
+  }
+}
+
+async function loadCinemaProgramme(){
+  const cfg = getCfg();
+  const container = document.getElementById('discover-cinema');
+  if(!container) return;
+  if(!cfg.cinema_url){
+    container.innerHTML = '<div class="empty-state">Colle le lien de ton cinéma dans les Paramètres pour voir son programme apparaître ici.</div>';
+    return;
+  }
+  container.innerHTML = '<div class="empty-state">Chargement...</div>';
+
+  let origin = null;
+  try{ origin = new URL(cfg.cinema_url).origin; }catch(e){ /* URL invalide, on ignore le flux RSS */ }
+
+  let rssHtml = '';
+  if(origin){
+    try{
+      const res = await fetch(origin + '/feed');
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const text = await res.text();
+      const items = parseRssItems(text).slice(0, 6);
+      if(items.length){
+        rssHtml = '<div class="grid">' + items.map(it=>`
+          <div class="discover-card">
+            <div class="info">
+              <div class="title">${escapeHtml(it.title)}</div>
+              <div class="meta">${escapeHtml((it.pubDate||'').substring(0,16))}</div>
+              <a class="btn secondary" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box;" href="${it.link}" target="_blank">Lire ↗</a>
+            </div>
+          </div>
+        `).join('') + '</div>';
+      }
+    }catch(err){
+      rssHtml = '<div class="settings-note">Aperçu automatique indisponible ici (probablement bloqué par le navigateur, CORS). Utilise le lien direct ci-dessous pour voir le programme complet.</div>';
+    }
+  }
+
+  container.innerHTML = `
+    <div style="margin-bottom:14px;">
+      <a class="btn" style="text-decoration:none;display:inline-block;" href="${cfg.cinema_url}" target="_blank">🎬 Voir le programme complet ↗</a>
+    </div>
+    ${rssHtml}
+  `;
+}
+
+function markSeasonWatched(serieId, seasonNum, watched){
+  const s = state.series.find(x=>String(x.id)===String(serieId));
+  if(!s) return;
+  const season = s.saisons.find(sx=>sx.numero===seasonNum);
+  if(!season) return;
+  season.episodes.forEach(e=>{
+    if(watched && !isEpisodeReleased(e)) return; // on ne marque pas comme vu un épisode pas encore diffusé
+    e.vu = watched;
+    if(watched) e.nouveau = false;
+  });
+  saveLocalState();
+  openSeasonNumbers.add(seasonNum);
+  renderSerieDetailModal();
+  renderSeries();
+}
+
+/* =========================================================
+   EXPORT / IMPORT / GITHUB
+   ========================================================= */
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'vutheque-data.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Export terminé', 'success');
+}
+function importJSON(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data.films || !data.series) throw new Error('Format invalide');
+      state = data;
+      saveLocalState();
+      renderFilms();
+      renderSeries();
+      showToast('Import réussi', 'success');
+    }catch(err){
+      showToast("Erreur d'import : " + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+function resetAll(){
+  if(!confirm('Cela efface toutes les données locales (films/séries). Continuer ?')) return;
+  state = {films:[], series:[]};
+  saveLocalState();
+  setLastRemoteSha(null);
+  renderFilms();
+  renderSeries();
+  showToast('Données réinitialisées', 'success');
+}
+
+function utf8_to_b64(str){
+  return btoa(unescape(encodeURIComponent(str)));
+}
+function b64_to_utf8(str){
+  return decodeURIComponent(escape(atob(str)));
+}
+
+let ghSaveInProgress = false;
+let ghSavePending = false;
+const LS_SYNC_SHA = 'watchlist_last_remote_sha';
+function getLastRemoteSha(){ return localStorage.getItem(LS_SYNC_SHA); }
+function setLastRemoteSha(sha){
+  if(sha) localStorage.setItem(LS_SYNC_SHA, sha);
+  else localStorage.removeItem(LS_SYNC_SHA);
+}
+
+async function ghSave(silent){
+  const cfg = getCfg();
+  if(!cfg.gh_owner || !cfg.gh_repo || !cfg.gh_token){
+    if(!silent) showToast("Configure d'abord GitHub dans les Paramètres", 'error');
+    return;
+  }
+
+  // Si une sauvegarde est déjà en cours, on ne lance pas de requête concurrente
+  // (c'est la cause la plus fréquente d'erreur "409 sha invalide") : on note juste
+  // qu'une nouvelle sauvegarde sera nécessaire juste après celle en cours.
+  if(ghSaveInProgress){
+    ghSavePending = true;
+    return;
+  }
+  ghSaveInProgress = true;
+
+  const path = cfg.gh_path || 'data.json';
+  const branch = cfg.gh_branch || 'main';
+  const apiUrl = `https://api.github.com/repos/${cfg.gh_owner}/${cfg.gh_repo}/contents/${path}`;
+  if(!silent) showToast('Sauvegarde sur GitHub...', '');
+
+  try{
+    const result = await ghSaveAttempt(apiUrl, branch, cfg, silent);
+    if(result === 'cancelled'){
+      showToast('Sauvegarde annulée — charge la version distante avant de réessayer', '');
+    } else if(result === 'conflict-skipped'){
+      showToast('⚠️ Sauvegarde auto interrompue : le fichier a changé sur GitHub (autre appareil ?). Sauvegarde manuellement pour résoudre.', 'error');
+    } else {
+      document.getElementById('last-save-note').textContent = 'Dernière sauvegarde GitHub : ' + new Date().toLocaleString() + (silent ? ' (auto)' : '');
+      showToast(silent ? 'Sauvegarde automatique effectuée ✅' : 'Sauvegardé sur GitHub ✅', 'success');
+    }
+  }catch(err){
+    showToast('Erreur GitHub' + (silent ? ' (auto)' : '') + ' : ' + err.message, 'error');
+  }finally{
+    ghSaveInProgress = false;
+    if(ghSavePending){
+      ghSavePending = false;
+      ghSave(true); // on rejoue la sauvegarde manquée, silencieusement
+    }
+  }
+}
+
+// Effectue GET (sha) + PUT. En cas de conflit 409 (sha périmé, ex: fichier modifié
+// entre-temps sur GitHub, depuis un autre onglet/appareil, ou plusieurs modifications
+// rapprochées), on retente jusqu'à 3 fois avec un sha frais et un petit délai aléatoire
+// avant d'abandonner et de remonter une erreur claire.
+//
+// Garde-fou anti-écrasement (option 1) : avant d'écrire, on compare le sha distant
+// actuel à celui qu'on avait vu la dernière fois qu'on a chargé/sauvegardé avec
+// succès. S'ils diffèrent, quelqu'un d'autre (un autre appareil/onglet) a modifié
+// le fichier entre-temps : on demande confirmation (sauvegarde manuelle) ou on
+// abandonne silencieusement (sauvegarde automatique), plutôt que d'écraser sans prévenir.
+async function ghSaveAttempt(apiUrl, branch, cfg, silent){
+  const maxAttempts = 3;
+  for(let attempt = 1; attempt <= maxAttempts; attempt++){
+    let sha = null;
+    // cache:'no-store' + paramètre unique : on veut TOUJOURS le sha le plus récent,
+    // jamais une réponse mise en cache par le navigateur (source probable des conflits persistants).
+    const getRes = await fetch(apiUrl + '?ref=' + branch + '&_=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' }
+    });
+    if(getRes.ok){
+      const getData = await getRes.json();
+      sha = getData.sha;
+    } else if(getRes.status === 401 || getRes.status === 403){
+      throw new Error('Accès refusé (' + getRes.status + ') — vérifie que ton token GitHub est valide et a bien les droits sur ce dépôt.');
+    } else if(getRes.status !== 404){
+      throw new Error('Lecture du fichier échouée (' + getRes.status + ')');
+    }
+
+    if(attempt === 1){
+      const known = getLastRemoteSha();
+      if(known && sha && known !== sha){
+        if(silent){
+          return 'conflict-skipped';
+        }
+        const proceed = confirm(
+          "Le fichier sur GitHub a été modifié depuis ta dernière synchronisation sur cet appareil " +
+          "(probablement depuis un autre appareil ou onglet).\n\n" +
+          "Écraser quand même avec la version de cet appareil ?\n\n" +
+          "Annuler pour charger d'abord la version distante (via \"Charger depuis GitHub\")."
+        );
+        if(!proceed) return 'cancelled';
+      }
+    }
+
+    const content = utf8_to_b64(JSON.stringify(state, null, 2));
+    const putRes = await fetch(apiUrl, {
+      method:'PUT',
+      cache: 'no-store',
+      headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' },
+      body: JSON.stringify({
+        message: 'Mise à jour watchlist - ' + new Date().toISOString(),
+        content,
+        branch,
+        sha: sha || undefined
+      })
+    });
+    if(putRes.ok){
+      const putData = await putRes.json().catch(()=>({}));
+      setLastRemoteSha(putData?.content?.sha || null);
+      return 'ok';
+    }
+
+    if(putRes.status === 409 && attempt < maxAttempts){
+      await new Promise(r => setTimeout(r, 250 + Math.random() * 350)); // petit délai avant de retenter avec un sha frais
+      continue;
+    }
+    const errData = await putRes.json().catch(()=>({}));
+    const hint = putRes.status === 409
+      ? ' (conflit persistant : peut-être un autre onglet/appareil qui sauvegarde en même temps)'
+      : (putRes.status === 422 ? ' (fichier peut-être trop volumineux pour cette méthode, ou branche/chemin invalide)' : '');
+    throw new Error((errData.message || ('Erreur ' + putRes.status)) + hint);
+  }
+  throw new Error('Échec de la sauvegarde après plusieurs tentatives.');
+}
+
+async function ghLoad(){
+  const cfg = getCfg();
+  if(!cfg.gh_owner || !cfg.gh_repo || !cfg.gh_token){
+    showToast("Configure d'abord GitHub dans les Paramètres", 'error');
+    return;
+  }
+  const path = cfg.gh_path || 'data.json';
+  const branch = cfg.gh_branch || 'main';
+  const apiUrl = `https://api.github.com/repos/${cfg.gh_owner}/${cfg.gh_repo}/contents/${path}?ref=${branch}&_=${Date.now()}`;
+  showToast('Chargement depuis GitHub...', '');
+  try{
+    const res = await fetch(apiUrl, {
+      cache: 'no-store',
+      headers: { 'Authorization': 'Bearer ' + cfg.gh_token, 'Accept':'application/vnd.github+json' }
+    });
+    if(!res.ok) throw new Error('Erreur ' + res.status);
+    const data = await res.json();
+    const jsonStr = b64_to_utf8(data.content.replace(/[\n\r]/g, ''));
+    const parsed = JSON.parse(jsonStr);
+    if(!parsed.films || !parsed.series) throw new Error('Format invalide dans le fichier distant');
+    state = parsed;
+    saveLocalState();
+    setLastRemoteSha(data.sha);
+    renderFilms();
+    renderSeries();
+    showToast('Données chargées depuis GitHub ✅', 'success');
+  }catch(err){
+    showToast('Erreur GitHub : ' + err.message, 'error');
+  }
+}
+
+/* =========================================================
+   UTILS
+   ========================================================= */
+function escapeHtml(str){
+  if(str===null || str===undefined) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+document.getElementById('app-version').textContent = 'v' + APP_VERSION;
+document.getElementById('app-version-settings').textContent = 'v' + APP_VERSION;
+loadConfigFromUrlIfPresent();
+loadLocalState();
+renderFilms();
+renderSeries();
+renderAvoirSeries();
+</script>
+</body>
+</html>
