@@ -624,7 +624,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.36';
+const APP_VERSION = '0.37';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -873,7 +873,7 @@ function renderFilms(){
           <div class="title">${escapeHtml(f.titre)}</div>
           <div class="year">${f.annee || ''}</div>
           ${showRecommender && f.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(f.recommande_par)}</div>` : ''}
-          <div style="margin-top:auto;display:flex;justify-content:flex-end;padding-top:6px;">
+          <div style="margin-top:6px;display:flex;justify-content:flex-end;">
             <label class="vu-toggle-label" style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;" onclick="event.stopPropagation();">
               Vu <input type="checkbox" class="vu-check" ${f.vu?'checked':''} onchange="toggleFilmWatched('${f.id}', true)">
             </label>
