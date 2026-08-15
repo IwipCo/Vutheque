@@ -225,7 +225,7 @@
     flex-shrink:0;
   }
   .vu-check{
-    width:19px;height:19px;
+    width:22px;height:22px;
     accent-color:var(--accent-2);
     cursor:pointer;
   }
@@ -624,7 +624,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.35';
+const APP_VERSION = '0.36';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -873,9 +873,11 @@ function renderFilms(){
           <div class="title">${escapeHtml(f.titre)}</div>
           <div class="year">${f.annee || ''}</div>
           ${showRecommender && f.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(f.recommande_par)}</div>` : ''}
-          <label class="vu-toggle-label" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:6px;padding:5px 0;font-size:12px;cursor:pointer;" onclick="event.stopPropagation();">
-            <input type="checkbox" class="vu-check" ${f.vu?'checked':''} onchange="toggleFilmWatched('${f.id}', true)"> Vu
-          </label>
+          <div style="margin-top:auto;display:flex;justify-content:flex-end;padding-top:6px;">
+            <label class="vu-toggle-label" style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;" onclick="event.stopPropagation();">
+              Vu <input type="checkbox" class="vu-check" ${f.vu?'checked':''} onchange="toggleFilmWatched('${f.id}', true)">
+            </label>
+          </div>
         </div>
       </div>
     `).join('') + '</div>';
