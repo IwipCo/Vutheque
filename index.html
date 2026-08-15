@@ -112,6 +112,15 @@
     background:var(--panel-2);border:none;color:var(--muted);padding:8px 12px;cursor:pointer;font-size:13px;
   }
   .toggle-group button.active{background:var(--accent);color:#fff;}
+  .toolbar-center{justify-content:center;}
+  .subtab-group{width:min(900px, 100%);margin-bottom:4px;}
+  .subtab-group button{
+    flex:1;
+    padding:14px 10px;
+    font-size:15px;
+    font-weight:600;
+    text-align:center;
+  }
 
   /* Cards */
   .grid{
@@ -282,10 +291,10 @@
   <h1>🎬 Vuthèque <span id="app-version" style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;"></span></h1>
   <button class="btn" id="btn-add-top" onclick="openAddForCurrentTab()">+ Ajouter</button>
   <nav id="main-nav">
-    <button data-view="films" class="active">Films</button>
-    <button data-view="series">Séries</button>
-    <button data-view="dashboard">Tableau de bord</button>
-    <button data-view="decouvrir">Découvrir</button>
+    <button data-view="avoir" class="active">👀 À voir</button>
+    <button data-view="films">🎬 Films</button>
+    <button data-view="series">📺 Séries</button>
+    <button data-view="dashboard">📊 Tableau de bord</button>
   </nav>
   <div style="display:flex;gap:6px;">
     <button class="icon-btn" id="btn-load-top" onclick="ghLoad()" title="Charger depuis GitHub">
@@ -308,63 +317,136 @@
 
 <main>
 
-  <!-- FILMS -->
-  <section class="view active" id="view-films">
-    <div class="toolbar">
-      <button class="btn" onclick="openSearchModal('movie')">+ Ajouter un film</button>
-      <select id="films-filter" onchange="renderFilms()">
-        <option value="all">Tous</option>
-        <option value="watched">Vus</option>
-        <option value="unwatched" selected>Non vus</option>
-      </select>
-      <select id="films-sort" onchange="renderFilms()">
-        <option value="date_ajout_desc">Date d'ajout (récent d'abord)</option>
-        <option value="date_ajout_asc">Date d'ajout (ancien d'abord)</option>
-        <option value="annee_desc">Année (récent d'abord)</option>
-        <option value="annee_asc">Année (ancien d'abord)</option>
-        <option value="titre">Titre (A-Z)</option>
-        <option value="realisateur">Réalisateur (A-Z)</option>
-        <option value="priorite_desc" selected>Priorité (la plus haute d'abord)</option>
-        <option value="recommande_par">Recommandé par (A-Z)</option>
-      </select>
-      <div class="spacer"></div>
-      <div class="toggle-group">
-        <button id="films-view-card" class="active" onclick="setFilmsView('card')">Carte</button>
-        <button id="films-view-list" onclick="setFilmsView('list')">Liste</button>
+  <!-- A VOIR -->
+  <section class="view active" id="view-avoir">
+    <div class="toolbar toolbar-center">
+      <div class="toggle-group subtab-group">
+        <button id="avoir-tab-series" class="active" onclick="setAvoirTab('series')">📺 Séries</button>
+        <button id="avoir-tab-films" onclick="setAvoirTab('films')">🎬 Films</button>
       </div>
     </div>
-    <div id="films-container"></div>
+
+    <div id="avoir-series-panel">
+      <div id="avoir-series-container"></div>
+    </div>
+
+    <div id="avoir-films-panel" style="display:none;">
+      <div class="toolbar">
+        <select id="avoir-films-sort" onchange="renderAvoirFilms()">
+          <option value="priorite_desc" selected>Priorité (la plus haute d'abord)</option>
+          <option value="date_ajout_desc">Date d'ajout (récent d'abord)</option>
+          <option value="titre">Titre (A-Z)</option>
+        </select>
+      </div>
+      <div id="avoir-films-container"></div>
+    </div>
+  </section>
+
+  <!-- FILMS -->
+  <section class="view" id="view-films">
+    <div class="toolbar toolbar-center">
+      <div class="toggle-group subtab-group">
+        <button id="films-tab-liste" class="active" onclick="setFilmsPageTab('liste')">📋 Ma liste</button>
+        <button id="films-tab-decouvrir" onclick="setFilmsPageTab('decouvrir')">🧭 Découvrir</button>
+      </div>
+    </div>
+
+    <div id="films-liste-panel">
+      <div class="toolbar">
+        <button class="btn" onclick="openSearchModal('movie')">+ Ajouter un film</button>
+        <select id="films-filter" onchange="renderFilms()">
+          <option value="all">Tous</option>
+          <option value="watched">Vus</option>
+          <option value="unwatched" selected>Non vus</option>
+        </select>
+        <select id="films-sort" onchange="renderFilms()">
+          <option value="date_ajout_desc">Date d'ajout (récent d'abord)</option>
+          <option value="date_ajout_asc">Date d'ajout (ancien d'abord)</option>
+          <option value="annee_desc">Année (récent d'abord)</option>
+          <option value="annee_asc">Année (ancien d'abord)</option>
+          <option value="titre">Titre (A-Z)</option>
+          <option value="realisateur">Réalisateur (A-Z)</option>
+          <option value="priorite_desc" selected>Priorité (la plus haute d'abord)</option>
+          <option value="recommande_par">Recommandé par (A-Z)</option>
+        </select>
+        <div class="spacer"></div>
+        <div class="toggle-group">
+          <button id="films-view-card" class="active" onclick="setFilmsView('card')">Carte</button>
+          <button id="films-view-list" onclick="setFilmsView('list')">Liste</button>
+        </div>
+      </div>
+      <div id="films-container"></div>
+    </div>
+
+    <div id="films-decouvrir-panel" style="display:none;">
+      <div class="toolbar">
+        <button class="btn secondary" onclick="loadDiscoverContent(true); loadCinemaProgramme();">🔄 Actualiser</button>
+        <div class="settings-note" style="margin:0;">Basé sur les notes publiques TMDB · région France</div>
+      </div>
+
+      <h3>🍿 Mon cinéma</h3>
+      <div id="discover-cinema"></div>
+
+      <h3 style="margin-top:28px;">🎬 Films au cinéma en ce moment</h3>
+      <div class="settings-note" style="margin-top:-6px;">Trié par date de sortie (le plus récent d'abord) · sorties en France</div>
+      <div id="discover-now-playing" class="grid"></div>
+
+      <h3 style="margin-top:28px;">🔥 Films populaires en ce moment</h3>
+      <div id="discover-trending-movies" class="grid"></div>
+    </div>
   </section>
 
   <!-- SERIES -->
   <section class="view" id="view-series">
-    <div class="toolbar">
-      <button class="btn" onclick="openSearchModal('tv')">+ Ajouter une série</button>
-      <button class="btn secondary" id="btn-check-all" onclick="checkAllSeriesUpdates()">🔄 Vérifier toutes les séries</button>
-      <select id="series-filter" onchange="renderSeries()">
-        <option value="all">Toutes (suivies)</option>
-        <option value="unfinished" selected>Avec épisodes non vus</option>
-        <option value="finished">Entièrement vues</option>
-        <option value="stopped">Arrêtées</option>
-      </select>
-      <select id="series-sort" onchange="renderSeries()">
-        <option value="date_ajout_desc">Date d'ajout (récent d'abord)</option>
-        <option value="date_ajout_asc">Date d'ajout (ancien d'abord)</option>
-        <option value="annee_desc">Année (récent d'abord)</option>
-        <option value="annee_asc">Année (ancien d'abord)</option>
-        <option value="titre">Titre (A-Z)</option>
-        <option value="realisateur">Créateur (A-Z)</option>
-        <option value="priorite_desc" selected>Priorité (la plus haute d'abord)</option>
-        <option value="recommande_par">Recommandé par (A-Z)</option>
-      </select>
-      <div class="spacer"></div>
-      <div class="toggle-group">
-        <button id="series-view-card" class="active" onclick="setSeriesView('card')">Carte</button>
-        <button id="series-view-list" onclick="setSeriesView('list')">Liste</button>
-        <button id="series-view-episodes" onclick="setSeriesView('episodes')">Épisodes</button>
+    <div class="toolbar toolbar-center">
+      <div class="toggle-group subtab-group">
+        <button id="series-tab-liste" class="active" onclick="setSeriesPageTab('liste')">📋 Ma liste</button>
+        <button id="series-tab-decouvrir" onclick="setSeriesPageTab('decouvrir')">🧭 Découvrir</button>
       </div>
     </div>
-    <div id="series-container"></div>
+
+    <div id="series-liste-panel">
+      <div class="toolbar">
+        <button class="btn" onclick="openSearchModal('tv')">+ Ajouter une série</button>
+        <button class="btn secondary" id="btn-check-all" onclick="checkAllSeriesUpdates()">🔄 Vérifier toutes les séries</button>
+        <select id="series-filter" onchange="renderSeries()">
+          <option value="all">Toutes (suivies)</option>
+          <option value="unfinished" selected>Avec épisodes non vus</option>
+          <option value="finished">Entièrement vues</option>
+          <option value="stopped">Arrêtées</option>
+        </select>
+        <select id="series-sort" onchange="renderSeries()">
+          <option value="date_ajout_desc">Date d'ajout (récent d'abord)</option>
+          <option value="date_ajout_asc">Date d'ajout (ancien d'abord)</option>
+          <option value="annee_desc">Année (récent d'abord)</option>
+          <option value="annee_asc">Année (ancien d'abord)</option>
+          <option value="titre">Titre (A-Z)</option>
+          <option value="realisateur">Créateur (A-Z)</option>
+          <option value="priorite_desc" selected>Priorité (la plus haute d'abord)</option>
+          <option value="recommande_par">Recommandé par (A-Z)</option>
+        </select>
+        <div class="spacer"></div>
+        <div class="toggle-group">
+          <button id="series-view-card" class="active" onclick="setSeriesView('card')">Carte</button>
+          <button id="series-view-list" onclick="setSeriesView('list')">Liste</button>
+          <button id="series-view-episodes" onclick="setSeriesView('episodes')">Épisodes</button>
+        </div>
+      </div>
+      <div id="series-container"></div>
+    </div>
+
+    <div id="series-decouvrir-panel" style="display:none;">
+      <div class="toolbar">
+        <button class="btn secondary" onclick="loadDiscoverContent(true);">🔄 Actualiser</button>
+        <div class="settings-note" style="margin:0;">Basé sur les tendances TMDB</div>
+      </div>
+
+      <h3>📈 Séries tendances du moment</h3>
+      <div id="discover-trending-tv" class="grid"></div>
+
+      <h3 style="margin-top:28px;">🆕 Séries avec des épisodes qui viennent de sortir</h3>
+      <div id="discover-on-air" class="grid"></div>
+    </div>
   </section>
 
   <!-- DASHBOARD -->
@@ -374,30 +456,6 @@
     <div id="dash-chart"></div>
     <h3 style="margin-top:28px;">Épisodes vus par série</h3>
     <div id="dash-chart-watched"></div>
-  </section>
-
-  <!-- DECOUVRIR -->
-  <section class="view" id="view-decouvrir">
-    <div class="toolbar">
-      <button class="btn secondary" onclick="loadDiscoverContent(true); loadCinemaProgramme();">🔄 Actualiser</button>
-      <div class="settings-note" style="margin:0;">Basé sur les notes publiques TMDB · région France</div>
-    </div>
-
-    <h3>🍿 Mon cinéma</h3>
-    <div id="discover-cinema"></div>
-
-    <h3 style="margin-top:28px;">🎬 Films au cinéma en ce moment</h3>
-    <div class="settings-note" style="margin-top:-6px;">Trié par date de sortie (le plus récent d'abord) · sorties en France</div>
-    <div id="discover-now-playing" class="grid"></div>
-
-    <h3 style="margin-top:28px;">🔥 Films populaires en ce moment</h3>
-    <div id="discover-trending-movies" class="grid"></div>
-
-    <h3 style="margin-top:28px;">📈 Séries tendances du moment</h3>
-    <div id="discover-trending-tv" class="grid"></div>
-
-    <h3 style="margin-top:28px;">🆕 Séries avec des épisodes qui viennent de sortir</h3>
-    <div id="discover-on-air" class="grid"></div>
   </section>
 
   <!-- SETTINGS -->
@@ -554,7 +612,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.32';
+const APP_VERSION = '0.33';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -712,7 +770,7 @@ document.getElementById('main-nav').addEventListener('click', (e)=>{
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-' + btn.dataset.view).classList.add('active');
   if(btn.dataset.view === 'dashboard') renderDashboard();
-  if(btn.dataset.view === 'decouvrir'){ loadDiscoverContent(false); loadCinemaProgramme(); }
+  if(btn.dataset.view === 'avoir') renderAvoirSeries(); // l'onglet Séries est actif par défaut
 });
 document.getElementById('btn-settings').addEventListener('click', ()=>{
   document.querySelectorAll('#main-nav button').forEach(b=>b.classList.remove('active'));
@@ -1138,6 +1196,102 @@ function formatDurationWithHours(totalMinutes){
   return `${main}<div style="font-size:11px;font-weight:400;color:var(--muted);margin-top:2px;">≈ ${totalHours} h</div>`;
 }
 
+// Réutilisable : liste des prochains épisodes non vus, un par série (utilisée par
+// la vue "Épisodes" de la page Séries ET par l'onglet "À voir").
+// --- Onglet "À voir" (page dédiée regroupant Séries + Films à voir) ---
+function renderAvoirSeries(){
+  const showRecommender = !!getCfg().show_recommender;
+  let list = state.series.filter(s => s.suivie !== false);
+  list = sortList(list, 'priorite_desc', 'serie');
+  renderEpisodesQueueInto('avoir-series-container', list, showRecommender);
+}
+function renderAvoirFilms(){
+  const sortEl = document.getElementById('avoir-films-sort');
+  const sortValue = sortEl ? sortEl.value : 'priorite_desc';
+  const showRecommender = !!getCfg().show_recommender;
+  let list = state.films.filter(f => !f.vu);
+  list = sortList(list, sortValue, 'film');
+  const c = document.getElementById('avoir-films-container');
+  if(list.length === 0){
+    c.innerHTML = '<div class="empty-state">Aucun film à voir. Tout est à jour 🎉</div>';
+    return;
+  }
+  c.innerHTML = list.map(f => `
+    <div class="episode-row quick-episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;padding:12px 14px;align-items:center;">
+      ${f.affiche_url ? `<img class="list-poster" src="${f.affiche_url}">` : ''}
+      <span class="ep-title" style="cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:flex-start;" onclick="openFilmDetail('${f.id}')">
+        <span><strong>${escapeHtml(f.titre)}</strong> ${f.annee ? `(${f.annee})` : ''}</span>
+        <span style="font-size:12px;color:var(--muted);">${escapeHtml(f.realisateur||'')}</span>
+        <span style="font-size:11px;">${priorityBadgeSmall(f)}${showRecommender && f.recommande_par ? ` <span style="color:var(--accent);">· 👤 ${escapeHtml(f.recommande_par)}</span>` : ''}</span>
+      </span>
+      <button class="btn" onclick="markFilmWatchedQuick(this, '${f.id}')">✓ Vu</button>
+    </div>
+  `).join('');
+}
+function markFilmWatchedQuick(btnEl, id){
+  const f = state.films.find(x=>String(x.id)===String(id));
+  if(!f) return;
+  const row = btnEl ? btnEl.closest('.quick-episode-row') : null;
+  const applyChange = ()=>{
+    f.vu = true;
+    saveLocalState();
+    renderFilms();
+    renderAvoirFilms();
+  };
+  if(row){
+    row.classList.add('just-watched');
+    setTimeout(applyChange, 280);
+  } else {
+    applyChange();
+  }
+}
+function setAvoirTab(tab){
+  document.getElementById('avoir-tab-series').classList.toggle('active', tab==='series');
+  document.getElementById('avoir-tab-films').classList.toggle('active', tab==='films');
+  document.getElementById('avoir-series-panel').style.display = tab==='series' ? 'block' : 'none';
+  document.getElementById('avoir-films-panel').style.display = tab==='films' ? 'block' : 'none';
+  if(tab==='series') renderAvoirSeries();
+  else renderAvoirFilms();
+}
+
+// --- Sous-onglets "Ma liste" / "Découvrir" sur les pages Films et Séries ---
+function setFilmsPageTab(tab){
+  document.getElementById('films-tab-liste').classList.toggle('active', tab==='liste');
+  document.getElementById('films-tab-decouvrir').classList.toggle('active', tab==='decouvrir');
+  document.getElementById('films-liste-panel').style.display = tab==='liste' ? 'block' : 'none';
+  document.getElementById('films-decouvrir-panel').style.display = tab==='decouvrir' ? 'block' : 'none';
+  if(tab==='decouvrir'){ loadDiscoverContent(false); loadCinemaProgramme(); }
+}
+function setSeriesPageTab(tab){
+  document.getElementById('series-tab-liste').classList.toggle('active', tab==='liste');
+  document.getElementById('series-tab-decouvrir').classList.toggle('active', tab==='decouvrir');
+  document.getElementById('series-liste-panel').style.display = tab==='liste' ? 'block' : 'none';
+  document.getElementById('series-decouvrir-panel').style.display = tab==='decouvrir' ? 'block' : 'none';
+  if(tab==='decouvrir'){ loadDiscoverContent(false); }
+}
+
+function renderEpisodesQueueInto(containerId, list, showRecommender){
+  const c = document.getElementById(containerId);
+  const rows = list
+    .map(s=>({ s, next: getFirstUnwatchedEpisode(s) }))
+    .filter(r=>r.next !== null);
+  if(rows.length === 0){
+    c.innerHTML = '<div class="empty-state">Aucun épisode en attente. Tout est à jour 🎉</div>';
+    return;
+  }
+  c.innerHTML = rows.map(({s, next})=>`
+    <div class="episode-row quick-episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;padding:12px 14px;align-items:center;">
+      ${s.affiche_url ? `<img class="list-poster" src="${s.affiche_url}">` : ''}
+      <span class="ep-title" style="cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:flex-start;" onclick="openSerieDetail('${s.id}')">
+        <span><strong>${escapeHtml(s.titre)}</strong> (${unwatchedCount(s)} à voir)${showRecommender && s.recommande_par ? ` <span style="font-size:11px;color:var(--accent);">· 👤 ${escapeHtml(s.recommande_par)}</span>` : ''}</span>
+        <span style="font-size:12px;color:var(--muted);">S${next.saison} E${next.episode.numero} · ${escapeHtml(next.episode.titre||'')}</span>
+        <span style="font-size:11px;color:var(--muted);">${formatDuration(getEpisodeDuration(next.episode, s))}${next.episode.date_diffusion ? ' · ' + next.episode.date_diffusion : ''}</span>
+      </span>
+      <button class="btn" onclick="markEpisodeWatchedQuick(this, '${s.id}', ${next.saison}, ${next.episode.numero})">✓ Vu</button>
+    </div>
+  `).join('');
+}
+
 function renderSeries(){
   const filter = document.getElementById('series-filter').value;
   const sortValue = document.getElementById('series-sort').value;
@@ -1154,24 +1308,7 @@ function renderSeries(){
   const c = document.getElementById('series-container');
 
   if(seriesView === 'episodes'){
-    const rows = list
-      .map(s=>({ s, next: getFirstUnwatchedEpisode(s) }))
-      .filter(r=>r.next !== null);
-    if(rows.length === 0){
-      c.innerHTML = '<div class="empty-state">Aucun épisode en attente. Tout est à jour 🎉</div>';
-      return;
-    }
-    c.innerHTML = rows.map(({s, next})=>`
-      <div class="episode-row quick-episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;padding:12px 14px;align-items:center;">
-        ${s.affiche_url ? `<img class="list-poster" src="${s.affiche_url}">` : ''}
-        <span class="ep-title" style="cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:flex-start;" onclick="openSerieDetail('${s.id}')">
-          <span><strong>${escapeHtml(s.titre)}</strong> (${unwatchedCount(s)} à voir)${showRecommender && s.recommande_par ? ` <span style="font-size:11px;color:var(--accent);">· 👤 ${escapeHtml(s.recommande_par)}</span>` : ''}</span>
-          <span style="font-size:12px;color:var(--muted);">S${next.saison} E${next.episode.numero} · ${escapeHtml(next.episode.titre||'')}</span>
-          <span style="font-size:11px;color:var(--muted);">${formatDuration(getEpisodeDuration(next.episode, s))}${next.episode.date_diffusion ? ' · ' + next.episode.date_diffusion : ''}</span>
-        </span>
-        <button class="btn" onclick="markEpisodeWatchedQuick(this, '${s.id}', ${next.saison}, ${next.episode.numero})">✓ Vu</button>
-      </div>
-    `).join('');
+    renderEpisodesQueueInto('series-container', list, showRecommender);
     return;
   }
 
@@ -1304,11 +1441,13 @@ function markEpisodeWatchedQuick(btnEl, serieId, seasonNum, epNum){
   if(!ep) return;
 
   const row = btnEl ? btnEl.closest('.quick-episode-row') : null;
+  const fromAvoir = !!(row && row.closest('#avoir-series-container'));
   const applyChange = ()=>{
     ep.vu = true;
     ep.nouveau = false;
     saveLocalState();
-    renderSeries(); // le prochain épisode non vu prend automatiquement sa place
+    if(fromAvoir) renderAvoirSeries();
+    else renderSeries(); // le prochain épisode non vu prend automatiquement sa place
   };
 
   if(row){
@@ -2507,6 +2646,7 @@ loadConfigFromUrlIfPresent();
 loadLocalState();
 renderFilms();
 renderSeries();
+renderAvoirSeries();
 </script>
 </body>
 </html>
