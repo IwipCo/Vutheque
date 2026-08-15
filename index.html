@@ -628,7 +628,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.38';
+const APP_VERSION = '0.39';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -877,11 +877,7 @@ function renderFilms(){
           <div class="title">${escapeHtml(f.titre)}</div>
           <div class="year">${f.annee || ''}</div>
           <div style="font-size:11px;color:var(--accent);margin-top:2px;min-height:14px;">${showRecommender && f.recommande_par ? `👤 ${escapeHtml(f.recommande_par)}` : ''}</div>
-          <div style="margin-top:6px;display:flex;justify-content:flex-end;">
-            <label class="vu-toggle-label" style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;" onclick="event.stopPropagation();">
-              Vu <input type="checkbox" class="vu-check" ${f.vu?'checked':''} onchange="toggleFilmWatched('${f.id}', true)">
-            </label>
-          </div>
+          <button class="btn ${f.vu?'secondary':''}" style="width:100%;margin-top:6px;padding:6px 0;font-size:12px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button>
         </div>
       </div>
     `).join('') + '</div>';
@@ -896,11 +892,7 @@ function renderFilms(){
           <td>${priorityBadgeSmall(f)}</td>
           ${showRecommender?`<td>${escapeHtml(f.recommande_par||'')}</td>`:''}
           <td>${f.vu ? '✅ Vu' : '⬜ Non vu'}</td>
-          <td onclick="event.stopPropagation();">
-            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
-              <input type="checkbox" class="vu-check" ${f.vu?'checked':''} onchange="toggleFilmWatched('${f.id}', true)"> Vu
-            </label>
-          </td>
+          <td><button class="btn ${f.vu?'secondary':''}" style="font-size:12px;padding:5px 10px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button></td>
         </tr>
       `).join('')}
     </tbody></table>`;
