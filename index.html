@@ -224,6 +224,12 @@
     cursor:pointer;
     flex-shrink:0;
   }
+  .vu-check{
+    width:19px;height:19px;
+    accent-color:var(--accent-2);
+    cursor:pointer;
+  }
+  .vu-toggle-label:hover{color:var(--text);}
   .quick-episode-row.just-watched{
     background:var(--accent-2) !important;
     transform:scale(0.98);
@@ -618,7 +624,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.34';
+const APP_VERSION = '0.35';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -867,7 +873,9 @@ function renderFilms(){
           <div class="title">${escapeHtml(f.titre)}</div>
           <div class="year">${f.annee || ''}</div>
           ${showRecommender && f.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(f.recommande_par)}</div>` : ''}
-          <button class="btn ${f.vu?'secondary':''}" style="width:100%;margin-top:6px;padding:5px 0;font-size:12px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button>
+          <label class="vu-toggle-label" style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:6px;padding:5px 0;font-size:12px;cursor:pointer;" onclick="event.stopPropagation();">
+            <input type="checkbox" class="vu-check" ${f.vu?'checked':''} onchange="toggleFilmWatched('${f.id}', true)"> Vu
+          </label>
         </div>
       </div>
     `).join('') + '</div>';
@@ -882,7 +890,11 @@ function renderFilms(){
           <td>${priorityBadgeSmall(f)}</td>
           ${showRecommender?`<td>${escapeHtml(f.recommande_par||'')}</td>`:''}
           <td>${f.vu ? '✅ Vu' : '⬜ Non vu'}</td>
-          <td><button class="btn ${f.vu?'secondary':''}" style="font-size:12px;padding:5px 10px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? '↺ Non vu' : '✓ Vu'}</button></td>
+          <td onclick="event.stopPropagation();">
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;">
+              <input type="checkbox" class="vu-check" ${f.vu?'checked':''} onchange="toggleFilmWatched('${f.id}', true)"> Vu
+            </label>
+          </td>
         </tr>
       `).join('')}
     </tbody></table>`;
