@@ -304,7 +304,7 @@
 <body>
 
 <header>
-  <h1>🎬 Vuthèque <span id="app-version" style="font-size:11px;font-weight:400;color:var(--muted);vertical-align:middle;"></span></h1>
+  <h1>🎬 Vuthèque</h1>
   <button class="btn" id="btn-add-top" onclick="openAddForCurrentTab()">+ Ajouter</button>
   <nav id="main-nav">
     <button data-view="avoir" class="active">👀 À voir</button>
@@ -628,7 +628,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.39';
+const APP_VERSION = '0.41';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1838,8 +1838,12 @@ async function fetchSeriesUpdates(s, cfg){
           nouveau: true
         });
         newCount++;
-      } else if(exists.duree == null && ep.runtime){
-        exists.duree = ep.runtime; // complète la durée si elle manquait
+      } else {
+        // Épisode déjà connu : on rafraîchit son titre/date/durée (ex: titre provisoire
+        // remplacé une fois l'épisode diffusé), sans jamais toucher à son statut vu/nouveau.
+        if(ep.name && exists.titre !== ep.name) exists.titre = ep.name;
+        if(ep.air_date && exists.date_diffusion !== ep.air_date) exists.date_diffusion = ep.air_date;
+        if(exists.duree == null && ep.runtime) exists.duree = ep.runtime;
       }
     });
     localSeason.episodes.sort((a,b)=>a.numero-b.numero);
@@ -2656,7 +2660,6 @@ function escapeHtml(str){
 /* =========================================================
    INIT
    ========================================================= */
-document.getElementById('app-version').textContent = 'v' + APP_VERSION;
 document.getElementById('app-version-settings').textContent = 'v' + APP_VERSION;
 loadConfigFromUrlIfPresent();
 loadLocalState();
