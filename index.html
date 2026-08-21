@@ -128,6 +128,17 @@
     grid-template-columns:repeat(auto-fill, minmax(160px,1fr));
     gap:16px;
   }
+  .grid-compact{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(90px,1fr));
+    gap:8px;
+  }
+  .card-compact .info{padding:5px 6px;}
+  .card-compact .title{
+    font-size:11px;line-height:1.2;margin-bottom:0;
+    min-height:calc(1.2em * 2);
+  }
+  .card-compact .badge{padding:2px 5px;font-size:9px;top:4px;right:4px;}
   .card{
     background:var(--panel);
     border:1px solid var(--border);
@@ -388,6 +399,7 @@
         <div class="spacer"></div>
         <div class="toggle-group">
           <button id="films-view-card" class="active" onclick="setFilmsView('card')">Carte</button>
+          <button id="films-view-compact" onclick="setFilmsView('compact')">Petite carte</button>
           <button id="films-view-list" onclick="setFilmsView('list')">Liste</button>
         </div>
       </div>
@@ -444,6 +456,7 @@
         <div class="spacer"></div>
         <div class="toggle-group">
           <button id="series-view-card" class="active" onclick="setSeriesView('card')">Carte</button>
+          <button id="series-view-compact" onclick="setSeriesView('compact')">Petite carte</button>
           <button id="series-view-list" onclick="setSeriesView('list')">Liste</button>
           <button id="series-view-episodes" onclick="setSeriesView('episodes')">Épisodes</button>
         </div>
@@ -628,7 +641,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.41';
+const APP_VERSION = '0.42';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -798,12 +811,14 @@ document.getElementById('btn-settings').addEventListener('click', ()=>{
 function setFilmsView(v){
   filmsView = v;
   document.getElementById('films-view-card').classList.toggle('active', v==='card');
+  document.getElementById('films-view-compact').classList.toggle('active', v==='compact');
   document.getElementById('films-view-list').classList.toggle('active', v==='list');
   renderFilms();
 }
 function setSeriesView(v){
   seriesView = v;
   document.getElementById('series-view-card').classList.toggle('active', v==='card');
+  document.getElementById('series-view-compact').classList.toggle('active', v==='compact');
   document.getElementById('series-view-list').classList.toggle('active', v==='list');
   document.getElementById('series-view-episodes').classList.toggle('active', v==='episodes');
   renderSeries();
@@ -872,12 +887,23 @@ function renderFilms(){
           ${priorityIconOnly(f)}
           <span class="badge ${f.vu?'watched':'unwatched'}" style="position:static;">${f.vu?'Vu':'Non vu'}</span>
         </div>
+        ${hasExtraInfo(f) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(f.recommande_par ? 'Recommandé par ' + f.recommande_par : (f.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
         ${f.affiche_url ? `<img src="${f.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(f.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(f.titre)}</div>
           <div class="year">${f.annee || ''}</div>
           <div style="font-size:11px;color:var(--accent);margin-top:2px;min-height:14px;">${showRecommender && f.recommande_par ? `👤 ${escapeHtml(f.recommande_par)}` : ''}</div>
           <button class="btn ${f.vu?'secondary':''}" style="width:100%;margin-top:6px;padding:6px 0;font-size:12px;" onclick="event.stopPropagation(); toggleFilmWatched('${f.id}', true)">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button>
+        </div>
+      </div>
+    `).join('') + '</div>';
+  } else if(filmsView === 'compact'){
+    c.innerHTML = '<div class="grid-compact">' + list.map(f=>`
+      <div class="card card-compact" onclick="openFilmDetailFromCard(this, '${f.id}')">
+        <span class="badge ${f.vu?'watched':'unwatched'}">${f.vu?'Vu':'Non vu'}</span>
+        ${f.affiche_url ? `<img src="${f.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(f.titre)}</div>`}
+        <div class="info">
+          <div class="title">${escapeHtml(f.titre)}</div>
         </div>
       </div>
     `).join('') + '</div>';
@@ -1345,11 +1371,27 @@ function renderSeries(){
           ${priorityIconOnly(s)}
           <span class="badge ${badgeClass}" style="position:static;">${badgeText}</span>
         </div>
+        ${hasExtraInfo(s) ? `<span class="badge" style="top:6px;left:6px;right:auto;background:rgba(0,0,0,.7);" title="${escapeHtml(s.recommande_par ? 'Recommandé par ' + s.recommande_par : (s.commentaire || 'Liens disponibles'))}">💬</span>` : ''}
         ${s.affiche_url ? `<img src="${s.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(s.titre)}</div>`}
         <div class="info">
           <div class="title">${escapeHtml(s.titre)}</div>
           <div class="year">${totalCount(s)} épisodes</div>
           ${showRecommender && s.recommande_par ? `<div style="font-size:11px;color:var(--accent);margin-top:2px;">👤 ${escapeHtml(s.recommande_par)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  } else if(seriesView === 'compact'){
+    c.innerHTML = '<div class="grid-compact">' + list.map(s=>{
+      const unw = unwatchedCount(s);
+      const stopped = s.suivie === false;
+      const badgeClass = stopped ? 'unwatched' : (unw>0?'unwatched':'watched');
+      const badgeText = stopped ? '⏸' : (unw>0? unw : '✓');
+      return `
+      <div class="card card-compact" onclick="openSerieDetailFromCard(this, '${s.id}')">
+        <span class="badge ${badgeClass}">${badgeText}</span>
+        ${s.affiche_url ? `<img src="${s.affiche_url}" alt="">` : `<div class="no-poster">${escapeHtml(s.titre)}</div>`}
+        <div class="info">
+          <div class="title">${escapeHtml(s.titre)}</div>
         </div>
       </div>`;
     }).join('') + '</div>';
@@ -1376,6 +1418,12 @@ function openSerieDetail(id){
   openDetailType = 'serie';
   openDetailId = id;
   openSeasonNumbers = new Set();
+  const s = state.series.find(x=>String(x.id)===String(id));
+  if(s){
+    const saisons = (s.saisons||[]).slice().sort((a,b)=>a.numero-b.numero);
+    const firstUnwatched = saisons.find(season => season.episodes.some(e=>!e.vu));
+    if(firstUnwatched) openSeasonNumbers.add(firstUnwatched.numero);
+  }
   renderSerieDetailModal();
   openModal('detail-modal');
 }
@@ -2666,6 +2714,21 @@ loadLocalState();
 renderFilms();
 renderSeries();
 renderAvoirSeries();
+
+// Au démarrage (chargement de la page ou F5), si la synchro GitHub est configurée,
+// on va chercher la dernière version distante pour ne pas repartir sur des données
+// potentiellement obsolètes (modifiées depuis un autre appareil).
+(async function autoLoadOnStartup(){
+  const cfg = getCfg();
+  if(cfg.gh_owner && cfg.gh_repo && cfg.gh_token){
+    await ghLoad();
+    renderAvoirSeries();
+    if(document.getElementById('avoir-films-panel')?.style.display !== 'none' &&
+       document.getElementById('avoir-tab-films')?.classList.contains('active')){
+      renderAvoirFilms();
+    }
+  }
+})();
 </script>
 </body>
 </html>
