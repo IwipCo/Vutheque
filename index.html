@@ -375,6 +375,7 @@
       <div class="toggle-group subtab-group">
         <button id="films-tab-liste" class="active" onclick="setFilmsPageTab('liste')">📋 Ma liste</button>
         <button id="films-tab-decouvrir" onclick="setFilmsPageTab('decouvrir')">🧭 Découvrir</button>
+        <button id="films-tab-nytimes" onclick="setFilmsPageTab('nytimes')">💯 100 NYTimes</button>
       </div>
     </div>
 
@@ -421,6 +422,13 @@
 
       <h3 style="margin-top:28px;">🔥 Films populaires en ce moment</h3>
       <div id="discover-trending-movies" class="grid"></div>
+    </div>
+
+    <div id="films-nytimes-panel" style="display:none;">
+      <div class="toolbar">
+        <div class="settings-note" style="margin:0;">Les 100 meilleurs films du 21ᵉ siècle selon le New York Times. Clique sur "Rechercher" pour retrouver le bon film sur TMDB et l'ajouter à ta liste.</div>
+      </div>
+      <div id="nytimes-list"></div>
     </div>
   </section>
 
@@ -641,7 +649,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.42';
+const APP_VERSION = '0.43';
 
 let state = { films: [], series: [] };
 let filmsView = 'card';
@@ -1300,10 +1308,58 @@ function setAvoirTab(tab){
 function setFilmsPageTab(tab){
   document.getElementById('films-tab-liste').classList.toggle('active', tab==='liste');
   document.getElementById('films-tab-decouvrir').classList.toggle('active', tab==='decouvrir');
+  document.getElementById('films-tab-nytimes').classList.toggle('active', tab==='nytimes');
   document.getElementById('films-liste-panel').style.display = tab==='liste' ? 'block' : 'none';
   document.getElementById('films-decouvrir-panel').style.display = tab==='decouvrir' ? 'block' : 'none';
+  document.getElementById('films-nytimes-panel').style.display = tab==='nytimes' ? 'block' : 'none';
   if(tab==='decouvrir'){ loadDiscoverContent(false); loadCinemaProgramme(); }
+  if(tab==='nytimes'){ renderNytimesList(); }
 }
+// --- Liste "100 meilleurs films du 21e siècle" (New York Times) ---
+const NYTIMES_100 = [
+  "Parasite", "Mulholland Drive", "There Will Be Blood", "In the Mood for Love", "Moonlight",
+  "No Country for Old Men", "Eternal Sunshine of the Spotless Mind", "Get Out", "Le Voyage de Chihiro", "The Social Network",
+  "Mad Max: Fury Road", "La Zone d'intérêt", "Les Fils de l'homme", "Inglourious Basterds", "La cité de Dieu",
+  "Tigre et Dragon", "Le secret de Brokeback Mountain", "Et... ta mère aussi!", "Zodiac", "Le Loup de Wall Street",
+  "La famille Tenenbaum", "The Grand Budapest Hotel", "Boyhood", "Her", "Phantom Thread",
+  "Anatomie d'une chute", "Adaptation.", "The Dark Knight : Le Chevalier noir", "Premier contact", "Lost in Translation",
+  "Les Infiltrés", "Mes meilleures amies", "Une séparation", "WALL·E", "Un prophète",
+  "A Serious Man", "Call Me by Your Name", "Portrait de la jeune fille en feu", "Lady Bird", "Yi yi",
+  "Le Fabuleux Destin d'Amélie Poulain", "The Master", "Old Boy", "Once Upon a Time in... Hollywood", "Le stratège",
+  "Roma", "Presque célèbre", "La Vie des autres", "Before Sunset", "Là-haut",
+  "12 Years a Slave", "La Favorite", "Borat : Leçons culturelles sur l'Amérique pour profit glorieuse nation Kazakhstan", "Le Labyrinthe de Pan", "Inception",
+  "Punch-Drunk Love : Ivre d'amour", "Bêtes de scène", "Uncut Gems", "Toni Erdmann", "Whiplash",
+  "Kill Bill: Volume I", "Memento", "Little Miss Sunshine", "Gone Girl", "Oppenheimer",
+  "Spotlight", "Tár", "Démineurs", "Under the Skin", "Morse",
+  "Ocean's Eleven", "Carol", "Ratatouille", "The Florida Project", "Amour",
+  "O' Brother", "Everything Everywhere All at Once", "Aftersun", "The Tree of Life", "Volver",
+  "Black Swan", "The act of killing - L'acte de tuer", "Inside Llewyn Davis", "Melancholia", "Présentateur vedette: La légende de Ron Burgundy",
+  "Past lives - Nos vies d'avant", "Le Seigneur des anneaux : La Communauté de l'anneau", "Les Glaneurs et la Glaneuse", "Interstellar", "Frances Ha",
+  "Fish Tank", "Gladiator", "Michael Clayton", "Minority Report", "Julie (en 12 chapitres)",
+  "Black Panther", "Gravity", "Grizzly Man", "Memories of Murder", "SuperGrave"
+];
+
+function renderNytimesList(){
+  const c = document.getElementById('nytimes-list');
+  c.innerHTML = NYTIMES_100.map((title, idx) => `
+    <div class="episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;padding:10px 14px;">
+      <span style="width:30px;flex-shrink:0;color:var(--muted);font-weight:700;">${idx+1}</span>
+      <span class="ep-title">${escapeHtml(title)}</span>
+      <button class="btn secondary" data-title="${escapeHtml(title)}" onclick="nytimesSearch(this.dataset.title)">🔍 Rechercher</button>
+    </div>
+  `).join('');
+}
+
+function nytimesSearch(title){
+  // On ne fait pas d'ajout automatique à l'aveugle : certains titres français peuvent
+  // correspondre à plusieurs résultats TMDB, on ouvre donc la recherche pré-remplie
+  // pour laisser choisir/valider le bon film (avec résumé et affiche) avant ajout.
+  openSearchModal('movie');
+  const cleanTitle = title.split(' - ')[0].split(':')[0].trim();
+  document.getElementById('search-input').value = cleanTitle;
+  doSearch();
+}
+
 function setSeriesPageTab(tab){
   document.getElementById('series-tab-liste').classList.toggle('active', tab==='liste');
   document.getElementById('series-tab-decouvrir').classList.toggle('active', tab==='decouvrir');
