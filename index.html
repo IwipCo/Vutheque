@@ -649,9 +649,9 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.43';
+const APP_VERSION = '0.44';
 
-let state = { films: [], series: [] };
+let state = { films: [], series: [], nytimes: [] };
 let filmsView = 'card';
 let seriesView = 'card';
 let currentSearchType = 'movie';
@@ -665,10 +665,11 @@ const LS_CFG = 'watchlist_config';
 function loadLocalState(){
   const raw = localStorage.getItem(LS_STATE);
   if(raw){
-    try{ state = JSON.parse(raw); }catch(e){ state = {films:[], series:[]}; }
+    try{ state = JSON.parse(raw); }catch(e){ state = {films:[], series:[], nytimes:[]}; }
   }
   if(!state.films) state.films = [];
   if(!state.series) state.series = [];
+  if(!state.nytimes) state.nytimes = [];
 }
 function saveLocalState(){
   localStorage.setItem(LS_STATE, JSON.stringify(state));
@@ -941,6 +942,7 @@ function getKnownTags(){
   const tags = new Set();
   state.films.forEach(f=>{ if(f.recommande_par) tags.add(f.recommande_par); });
   state.series.forEach(s=>{ if(s.recommande_par) tags.add(s.recommande_par); });
+  (state.nytimes||[]).forEach(f=>{ if(f.recommande_par) tags.add(f.recommande_par); });
   return Array.from(tags).sort((a,b)=>a.localeCompare(b, 'fr'));
 }
 
@@ -1014,6 +1016,13 @@ function setPriority(kind, id, value){
     saveLocalState();
     renderFilms();
     openFilmDetail(id);
+  } else if(kind === 'nytimes'){
+    const f = state.nytimes.find(x=>String(x.id)===String(id));
+    if(!f) return;
+    f.priorite = value;
+    saveLocalState();
+    renderNytimesList();
+    openNytimesDetail(id);
   } else {
     const s = state.series.find(x=>String(x.id)===String(id));
     if(!s) return;
@@ -1106,6 +1115,14 @@ function saveExtraInfo(kind, id, silent){
     f.liens = liens;
     saveLocalState();
     renderFilms();
+  } else if(kind === 'nytimes'){
+    const f = state.nytimes.find(x=>String(x.id)===String(id));
+    if(!f) return;
+    f.recommande_par = tag;
+    f.commentaire = comment;
+    f.liens = liens;
+    saveLocalState();
+    renderNytimesList();
   } else {
     const s = state.series.find(x=>String(x.id)===String(id));
     if(!s) return;
@@ -1160,6 +1177,60 @@ function deleteFilm(id){
   saveLocalState();
   closeModal('detail-modal');
   renderFilms();
+}
+
+/* =========================================================
+   COLLECTION "100 NYTIMES" — séparée de "Ma liste", ne doit apparaître
+   nulle part ailleurs (Ma liste, À voir, Tableau de bord...).
+   ========================================================= */
+function openNytimesDetail(id){
+  const f = state.nytimes.find(x=>String(x.id)===String(id));
+  if(!f) return;
+  openDetailType = 'nytimes';
+  openDetailId = id;
+  const key = 'nytimes:' + id;
+  const draftItem = captureExtraDraft(f, key);
+  const html = `
+    <div class="detail-header">
+      ${f.affiche_url ? `<img src="${f.affiche_url}">` : ''}
+      <div>
+        <h2 style="margin:0 0 6px;">${escapeHtml(f.titre)} ${f.annee?`(${f.annee})`:''}</h2>
+        <div class="dh-meta">🏆 #${f.nytimes_index+1} de la liste 100 NYTimes</div>
+        <div class="dh-meta">Réalisateur : ${escapeHtml(f.realisateur||'inconnu')}</div>
+        <div class="dh-meta">Genres : ${escapeHtml((f.genres||[]).join(', '))}</div>
+        <div class="dh-meta">Casting : ${escapeHtml((f.casting||[]).slice(0,6).join(', '))}</div>
+        ${f.tmdb_id ? `<div class="dh-meta"><a href="https://www.themoviedb.org/movie/${f.tmdb_id}" target="_blank">Voir sur TMDB ↗</a></div>` : ''}
+        <p style="font-size:13px;color:var(--muted);max-width:480px;">${escapeHtml(f.synopsis||'')}</p>
+        <div class="settings-note" style="margin:8px 0;">Ce film fait partie de ta liste "100 NYTimes", séparée de "Ma liste".</div>
+        <button class="btn ${f.vu?'secondary':''}" onclick="toggleNytimesWatched('${f.id}')">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button>
+        <button class="btn danger" onclick="deleteNytimesFilm('${f.id}')">Retirer de la liste NYTimes</button>
+        ${renderPriorityWidget(f, 'nytimes')}
+        ${renderExtraInfoBlock(draftItem, 'nytimes')}
+      </div>
+    </div>
+  `;
+  document.getElementById('detail-content').innerHTML = html;
+  lastRenderedDetailKey = key;
+  openModal('detail-modal');
+}
+function openNytimesDetailFromRow(rowEl, id){
+  pendingFlipSourceEl = rowEl;
+  openNytimesDetail(id);
+}
+function toggleNytimesWatched(id, skipDetailOpen){
+  const f = state.nytimes.find(x=>String(x.id)===String(id));
+  if(!f) return;
+  f.vu = !f.vu;
+  saveLocalState();
+  renderNytimesList();
+  if(!skipDetailOpen) openNytimesDetail(id);
+}
+function deleteNytimesFilm(id){
+  if(!confirm('Retirer ce film de ta liste NYTimes ?')) return;
+  state.nytimes = state.nytimes.filter(x=>String(x.id)!==String(id));
+  saveLocalState();
+  closeModal('detail-modal');
+  renderNytimesList();
 }
 
 /* =========================================================
@@ -1341,19 +1412,40 @@ const NYTIMES_100 = [
 
 function renderNytimesList(){
   const c = document.getElementById('nytimes-list');
-  c.innerHTML = NYTIMES_100.map((title, idx) => `
+  const showRecommender = !!getCfg().show_recommender;
+  c.innerHTML = NYTIMES_100.map((title, idx) => {
+    const f = state.nytimes.find(x => x.nytimes_index === idx);
+    if(f){
+      // Déjà ajouté : on affiche la fiche comme dans "Ma liste → vue Liste"
+      return `
+      <div class="episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;padding:10px 14px;align-items:center;cursor:pointer;" onclick="openNytimesDetailFromRow(this, '${f.id}')">
+        <span style="width:30px;flex-shrink:0;color:var(--muted);font-weight:700;">${idx+1}</span>
+        ${f.affiche_url ? `<img class="list-poster" src="${f.affiche_url}">` : ''}
+        <span class="ep-title">
+          <strong>${escapeHtml(f.titre)}</strong> ${f.annee?`(${f.annee})`:''}
+          <span style="color:var(--muted);"> — ${escapeHtml(f.realisateur||'')}</span>
+          <span style="margin-left:6px;">${priorityBadgeSmall(f)}</span>
+          ${showRecommender && f.recommande_par ? `<span style="font-size:11px;color:var(--accent);"> · 👤 ${escapeHtml(f.recommande_par)}</span>` : ''}
+        </span>
+        <span style="font-size:12px;color:var(--muted);flex-shrink:0;">${f.vu ? '✅ Vu' : '⬜ Non vu'}</span>
+        <button class="btn ${f.vu?'secondary':''}" style="flex-shrink:0;" onclick="event.stopPropagation(); toggleNytimesWatched('${f.id}', true)">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button>
+      </div>`;
+    }
+    return `
     <div class="episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;padding:10px 14px;">
       <span style="width:30px;flex-shrink:0;color:var(--muted);font-weight:700;">${idx+1}</span>
       <span class="ep-title">${escapeHtml(title)}</span>
-      <button class="btn secondary" data-title="${escapeHtml(title)}" onclick="nytimesSearch(this.dataset.title)">🔍 Rechercher</button>
-    </div>
-  `).join('');
+      <button class="btn secondary" data-title="${escapeHtml(title)}" data-index="${idx}" onclick="nytimesSearch(this.dataset.title, Number(this.dataset.index))">🔍 Rechercher</button>
+    </div>`;
+  }).join('');
 }
 
-function nytimesSearch(title){
+let pendingNytimesIndex = null;
+function nytimesSearch(title, index){
   // On ne fait pas d'ajout automatique à l'aveugle : certains titres français peuvent
   // correspondre à plusieurs résultats TMDB, on ouvre donc la recherche pré-remplie
   // pour laisser choisir/valider le bon film (avec résumé et affiche) avant ajout.
+  pendingNytimesIndex = index;
   openSearchModal('movie');
   const cleanTitle = title.split(' - ')[0].split(':')[0].trim();
   document.getElementById('search-input').value = cleanTitle;
@@ -1671,10 +1763,11 @@ function openModal(id){
 }
 function closeModal(id){
   if(id === 'detail-modal'){ closeDetailFlip(); return; }
+  if(id === 'search-modal'){ pendingNytimesIndex = null; }
   document.getElementById(id).classList.remove('open');
 }
 document.querySelectorAll('.modal-overlay').forEach(ov=>{
-  ov.addEventListener('click', (e)=>{ if(e.target === ov) ov.classList.remove('open'); });
+  ov.addEventListener('click', (e)=>{ if(e.target === ov) closeModal(ov.id); });
 });
 function openAddForCurrentTab(){
   const activeNav = document.querySelector('#main-nav button.active');
@@ -1702,7 +1795,7 @@ document.addEventListener('keydown', (e)=>{
   const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable;
 
   if(e.key === 'Escape'){
-    document.querySelectorAll('.modal-overlay.open').forEach(ov=>ov.classList.remove('open'));
+    document.querySelectorAll('.modal-overlay.open').forEach(ov=>closeModal(ov.id));
     if(detailFlipOpen) closeDetailFlip();
     return;
   }
@@ -1721,6 +1814,9 @@ document.addEventListener('keydown', (e)=>{
     if(openDetailType === 'film'){
       e.preventDefault();
       toggleFilmWatched(openDetailId);
+    } else if(openDetailType === 'nytimes'){
+      e.preventDefault();
+      toggleNytimesWatched(openDetailId);
     }
   }
 });
@@ -1732,6 +1828,7 @@ const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
 
 function openSearchModal(type){
   currentSearchType = type;
+  pendingNytimesIndex = null;
   document.getElementById('search-modal-title').textContent = type==='movie' ? 'Rechercher un film' : 'Rechercher une série';
   document.getElementById('search-input').value = '';
   document.getElementById('search-results').innerHTML = '';
@@ -1843,6 +1940,22 @@ async function addFromTmdb(tmdbId){
         priorite: 'normal',
         date_ajout: new Date().toISOString()
       };
+      if(pendingNytimesIndex !== null){
+        // Ajout depuis l'onglet 100 NYTimes : collection totalement séparée de "Ma liste"
+        const idx = pendingNytimesIndex;
+        pendingNytimesIndex = null;
+        if(state.nytimes.find(f=>f.tmdb_id===d.id)){
+          showToast('Ce film est déjà dans ta liste NYTimes', 'error');
+          return;
+        }
+        film.nytimes_index = idx;
+        state.nytimes.push(film);
+        saveLocalState();
+        renderNytimesList();
+        showToast('Film ajouté à la liste NYTimes : ' + film.titre, 'success');
+        closeModal('search-modal');
+        return;
+      }
       if(state.films.find(f=>f.tmdb_id===d.id)){
         showToast('Ce film est déjà dans ta liste', 'error');
         return;
@@ -2565,10 +2678,12 @@ function importJSON(file){
     try{
       const data = JSON.parse(e.target.result);
       if(!data.films || !data.series) throw new Error('Format invalide');
+      if(!data.nytimes) data.nytimes = [];
       state = data;
       saveLocalState();
       renderFilms();
       renderSeries();
+      renderNytimesList();
       showToast('Import réussi', 'success');
     }catch(err){
       showToast("Erreur d'import : " + err.message, 'error');
@@ -2577,12 +2692,13 @@ function importJSON(file){
   reader.readAsText(file);
 }
 function resetAll(){
-  if(!confirm('Cela efface toutes les données locales (films/séries). Continuer ?')) return;
-  state = {films:[], series:[]};
+  if(!confirm('Cela efface toutes les données locales (films/séries/liste NYTimes). Continuer ?')) return;
+  state = {films:[], series:[], nytimes:[]};
   saveLocalState();
   setLastRemoteSha(null);
   renderFilms();
   renderSeries();
+  renderNytimesList();
   showToast('Données réinitialisées', 'success');
 }
 
@@ -2740,11 +2856,13 @@ async function ghLoad(){
     const jsonStr = b64_to_utf8(data.content.replace(/[\n\r]/g, ''));
     const parsed = JSON.parse(jsonStr);
     if(!parsed.films || !parsed.series) throw new Error('Format invalide dans le fichier distant');
+    if(!parsed.nytimes) parsed.nytimes = [];
     state = parsed;
     saveLocalState();
     setLastRemoteSha(data.sha);
     renderFilms();
     renderSeries();
+    renderNytimesList();
     showToast('Données chargées depuis GitHub ✅', 'success');
   }catch(err){
     showToast('Erreur GitHub : ' + err.message, 'error');
