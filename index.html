@@ -649,7 +649,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.44';
+const APP_VERSION = '0.45';
 
 let state = { films: [], series: [], nytimes: [] };
 let filmsView = 'card';
@@ -1445,8 +1445,8 @@ function nytimesSearch(title, index){
   // On ne fait pas d'ajout automatique à l'aveugle : certains titres français peuvent
   // correspondre à plusieurs résultats TMDB, on ouvre donc la recherche pré-remplie
   // pour laisser choisir/valider le bon film (avec résumé et affiche) avant ajout.
+  openSearchModal('movie'); // réinitialise pendingNytimesIndex à null : on le fixe donc APRÈS cet appel
   pendingNytimesIndex = index;
-  openSearchModal('movie');
   const cleanTitle = title.split(' - ')[0].split(':')[0].trim();
   document.getElementById('search-input').value = cleanTitle;
   doSearch();
