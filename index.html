@@ -488,8 +488,13 @@
 
   <!-- DASHBOARD -->
   <section class="view" id="view-dashboard">
+    <h3 style="margin-top:0;">🎬 Ma liste &amp; séries</h3>
     <div class="stat-cards" id="stat-cards"></div>
-    <h3>Épisodes non vus par série</h3>
+
+    <h3 style="margin-top:28px;">🏆 Liste 100 NYTimes</h3>
+    <div class="stat-cards" id="stat-cards-nytimes"></div>
+
+    <h3 style="margin-top:28px;">Épisodes non vus par série</h3>
     <div id="dash-chart"></div>
     <h3 style="margin-top:28px;">Épisodes vus par série</h3>
     <div id="dash-chart-watched"></div>
@@ -649,7 +654,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.45';
+const APP_VERSION = '0.46';
 
 let state = { films: [], series: [], nytimes: [] };
 let filmsView = 'card';
@@ -1708,12 +1713,21 @@ function renderDashboard(){
   });
 
   document.getElementById('stat-cards').innerHTML = `
-    <div class="stat-card"><div class="num">${filmsWatched}/${totalFilms}</div><div class="lbl">Films vus</div></div>
+    <div class="stat-card"><div class="num">${filmsWatched}/${totalFilms}</div><div class="lbl">Films vus (Ma liste)</div></div>
     <div class="stat-card"><div class="num">${totalSeries}</div><div class="lbl">Séries suivies</div></div>
     <div class="stat-card"><div class="num">${totalEp - unwEp}/${totalEp}</div><div class="lbl">Épisodes vus</div></div>
     <div class="stat-card"><div class="num">${unwEp}</div><div class="lbl">Épisodes à voir</div></div>
     <div class="stat-card"><div class="num">${formatDurationWithHours(unwMinutes)}</div><div class="lbl">Temps restant estimé</div></div>
     <div class="stat-card"><div class="num">${formatDurationWithHours(watchedMinutes)}</div><div class="lbl">Temps regardé au total</div></div>
+  `;
+
+  const nytimesAdded = state.nytimes.length;
+  const nytimesWatched = state.nytimes.filter(f=>f.vu).length;
+  const nytimesRemaining = 100 - nytimesAdded;
+  document.getElementById('stat-cards-nytimes').innerHTML = `
+    <div class="stat-card"><div class="num">${nytimesWatched}/100</div><div class="lbl">Films vus</div></div>
+    <div class="stat-card"><div class="num">${nytimesAdded}/100</div><div class="lbl">Films ajoutés à la liste</div></div>
+    <div class="stat-card"><div class="num">${nytimesRemaining}</div><div class="lbl">Pas encore ajoutés</div></div>
   `;
 
   // Graphique 1 : épisodes non vus
@@ -1869,13 +1883,14 @@ async function doSearch(){
       const year = date ? date.substring(0,4) : '';
       const poster = r.poster_path ? TMDB_IMG + r.poster_path : '';
       const overview = r.overview ? escapeHtml(r.overview) : 'Pas de résumé disponible.';
+      const note = r.vote_average ? '★ ' + r.vote_average.toFixed(1) : '';
       return `
         <div class="search-result" style="flex-direction:column;align-items:stretch;">
           <div style="display:flex;gap:12px;align-items:center;">
             ${poster ? `<img src="${poster}">` : `<div style="width:46px;height:69px;background:var(--panel-2);border-radius:4px;"></div>`}
             <div class="sr-info" style="cursor:pointer;" onclick="toggleSearchOverview(${idx})">
               <div class="sr-title">${escapeHtml(title)} <span style="color:var(--muted);font-weight:400;">(résumé ▾)</span></div>
-              <div class="sr-year">${year}</div>
+              <div class="sr-year">${year}${note ? ' · ' + note : ''}${currentSearchType==='movie' ? `<span id="sr-director-${idx}"></span>` : ''}</div>
             </div>
             <button class="btn" onclick="addFromTmdb(${r.id})">Ajouter</button>
           </div>
@@ -1883,6 +1898,21 @@ async function doSearch(){
         </div>
       `;
     }).join('');
+    if(currentSearchType === 'movie'){
+      // Le réalisateur n'est pas fourni par l'endpoint de recherche : on va le chercher
+      // séparément pour chaque résultat, sans bloquer l'affichage initial.
+      lastSearchResults.forEach((r, idx)=>{
+        fetch(`https://api.themoviedb.org/3/movie/${r.id}?api_key=${cfg.tmdb_key}&language=fr-FR&append_to_response=credits`)
+          .then(res => res.ok ? res.json() : null)
+          .then(d => {
+            if(!d) return;
+            const director = (d.credits?.crew||[]).find(c=>c.job==='Director');
+            const el = document.getElementById('sr-director-' + idx);
+            if(el && director) el.textContent = ' · ' + director.name;
+          })
+          .catch(()=>{});
+      });
+    }
   }catch(err){
     resultsEl.innerHTML = '<div class="empty-state">Erreur : '+escapeHtml(err.message)+'</div>';
   }
