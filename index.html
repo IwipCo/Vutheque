@@ -488,16 +488,17 @@
 
   <!-- DASHBOARD -->
   <section class="view" id="view-dashboard">
-    <h3 style="margin-top:0;">🎬 Ma liste &amp; séries</h3>
-    <div class="stat-cards" id="stat-cards"></div>
+    <h3 style="margin-top:0;">🎬 Les films</h3>
+    <div class="stat-cards" id="stat-cards-films"></div>
 
-    <h3 style="margin-top:28px;">🏆 Liste 100 NYTimes</h3>
-    <div class="stat-cards" id="stat-cards-nytimes"></div>
+    <h3 style="margin-top:28px;">📺 Les séries</h3>
+    <div class="stat-cards" id="stat-cards-series"></div>
 
     <h3 style="margin-top:28px;">Épisodes non vus par série</h3>
     <div id="dash-chart"></div>
     <h3 style="margin-top:28px;">Épisodes vus par série</h3>
     <div id="dash-chart-watched"></div>
+
   </section>
 
   <!-- SETTINGS -->
@@ -654,7 +655,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.46';
+const APP_VERSION = '0.47';
 
 let state = { films: [], series: [], nytimes: [] };
 let filmsView = 'card';
@@ -1700,9 +1701,26 @@ function watchedCount(serie){
   return n;
 }
 
+function getFilmDuration(f){
+  return f.duree || 110; // estimation moyenne si TMDB n'a pas fourni la durée du film
+}
+
 function renderDashboard(){
   const totalFilms = state.films.length;
   const filmsWatched = state.films.filter(f=>f.vu).length;
+  const nytimesAdded = state.nytimes.length;
+  const nytimesWatched = state.nytimes.filter(f=>f.vu).length;
+
+  let filmMinutesWatched = 0;
+  state.films.forEach(f=>{ if(f.vu) filmMinutesWatched += getFilmDuration(f); });
+  state.nytimes.forEach(f=>{ if(f.vu) filmMinutesWatched += getFilmDuration(f); });
+
+  document.getElementById('stat-cards-films').innerHTML = `
+    <div class="stat-card"><div class="num">${filmsWatched}/${totalFilms}</div><div class="lbl">Films vus (Ma liste)</div></div>
+    <div class="stat-card"><div class="num">${nytimesWatched}/100</div><div class="lbl">Films vus (100 NYTimes)</div></div>
+    <div class="stat-card"><div class="num">${formatDurationWithHours(filmMinutesWatched)}</div><div class="lbl">Temps de films vu au total</div></div>
+  `;
+
   const totalSeries = state.series.length;
   let totalEp=0, unwEp=0, unwMinutes=0, watchedMinutes=0;
   state.series.forEach(s=>{
@@ -1712,22 +1730,12 @@ function renderDashboard(){
     watchedMinutes += watchedDurationMinutes(s);
   });
 
-  document.getElementById('stat-cards').innerHTML = `
-    <div class="stat-card"><div class="num">${filmsWatched}/${totalFilms}</div><div class="lbl">Films vus (Ma liste)</div></div>
+  document.getElementById('stat-cards-series').innerHTML = `
     <div class="stat-card"><div class="num">${totalSeries}</div><div class="lbl">Séries suivies</div></div>
     <div class="stat-card"><div class="num">${totalEp - unwEp}/${totalEp}</div><div class="lbl">Épisodes vus</div></div>
     <div class="stat-card"><div class="num">${unwEp}</div><div class="lbl">Épisodes à voir</div></div>
     <div class="stat-card"><div class="num">${formatDurationWithHours(unwMinutes)}</div><div class="lbl">Temps restant estimé</div></div>
     <div class="stat-card"><div class="num">${formatDurationWithHours(watchedMinutes)}</div><div class="lbl">Temps regardé au total</div></div>
-  `;
-
-  const nytimesAdded = state.nytimes.length;
-  const nytimesWatched = state.nytimes.filter(f=>f.vu).length;
-  const nytimesRemaining = 100 - nytimesAdded;
-  document.getElementById('stat-cards-nytimes').innerHTML = `
-    <div class="stat-card"><div class="num">${nytimesWatched}/100</div><div class="lbl">Films vus</div></div>
-    <div class="stat-card"><div class="num">${nytimesAdded}/100</div><div class="lbl">Films ajoutés à la liste</div></div>
-    <div class="stat-card"><div class="num">${nytimesRemaining}</div><div class="lbl">Pas encore ajoutés</div></div>
   `;
 
   // Graphique 1 : épisodes non vus
@@ -1966,6 +1974,7 @@ async function addFromTmdb(tmdbId){
         synopsis: d.overview || '',
         genres: (d.genres||[]).map(g=>g.name),
         casting: (d.credits?.cast||[]).slice(0,10).map(c=>c.name),
+        duree: d.runtime || null,
         vu: false,
         priorite: 'normal',
         date_ajout: new Date().toISOString()
@@ -2151,7 +2160,7 @@ async function refreshAllMetadata(){
     showToast('Configure ta clé API TMDB dans les Paramètres', 'error');
     return;
   }
-  const total = state.films.length + state.series.length;
+  const total = state.films.length + state.series.length + state.nytimes.length;
   if(total === 0){
     showToast('Aucune fiche à rafraîchir', '');
     return;
@@ -2160,21 +2169,35 @@ async function refreshAllMetadata(){
   if(btn){ btn.disabled = true; btn.textContent = '🔄 Rafraîchissement en cours...'; }
   let updated = 0, errors = 0;
 
+  async function refreshFilmObject(f){
+    const url = `https://api.themoviedb.org/3/movie/${f.tmdb_id}?api_key=${cfg.tmdb_key}&language=fr-FR&append_to_response=credits,external_ids`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('Erreur ' + res.status);
+    const d = await res.json();
+    const director = (d.credits?.crew||[]).find(c=>c.job==='Director');
+    f.titre = d.title || f.titre;
+    f.annee = d.release_date ? d.release_date.substring(0,4) : f.annee;
+    f.realisateur = director ? director.name : f.realisateur;
+    f.affiche_url = d.poster_path ? TMDB_IMG + d.poster_path : f.affiche_url;
+    f.synopsis = d.overview || f.synopsis;
+    f.genres = (d.genres||[]).map(g=>g.name);
+    f.casting = (d.credits?.cast||[]).slice(0,10).map(c=>c.name);
+    f.imdb_id = d.external_ids?.imdb_id || f.imdb_id;
+    if(d.runtime) f.duree = d.runtime;
+  }
+
   for(const f of state.films){
     try{
-      const url = `https://api.themoviedb.org/3/movie/${f.tmdb_id}?api_key=${cfg.tmdb_key}&language=fr-FR&append_to_response=credits,external_ids`;
-      const res = await fetch(url);
-      if(!res.ok) throw new Error('Erreur ' + res.status);
-      const d = await res.json();
-      const director = (d.credits?.crew||[]).find(c=>c.job==='Director');
-      f.titre = d.title || f.titre;
-      f.annee = d.release_date ? d.release_date.substring(0,4) : f.annee;
-      f.realisateur = director ? director.name : f.realisateur;
-      f.affiche_url = d.poster_path ? TMDB_IMG + d.poster_path : f.affiche_url;
-      f.synopsis = d.overview || f.synopsis;
-      f.genres = (d.genres||[]).map(g=>g.name);
-      f.casting = (d.credits?.cast||[]).slice(0,10).map(c=>c.name);
-      f.imdb_id = d.external_ids?.imdb_id || f.imdb_id;
+      await refreshFilmObject(f);
+      updated++;
+    }catch(err){
+      errors++;
+    }
+  }
+
+  for(const f of state.nytimes){
+    try{
+      await refreshFilmObject(f);
       updated++;
     }catch(err){
       errors++;
@@ -2209,6 +2232,7 @@ async function refreshAllMetadata(){
   saveLocalState();
   renderFilms();
   renderSeries();
+  renderNytimesList();
   if(openDetailId) renderSerieDetailModal();
   if(btn){ btn.disabled = false; btn.textContent = '🔄 Rafraîchir les métadonnées (films & séries)'; }
   let msg = `${updated} fiche(s) mise(s) à jour`;
