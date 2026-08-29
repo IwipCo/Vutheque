@@ -244,6 +244,20 @@
     accent-color:var(--accent-2);
     cursor:pointer;
   }
+  .nytimes-added-row{
+    display:flex;align-items:center;flex-wrap:wrap;gap:10px;
+    background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+    margin-bottom:6px;padding:10px 14px;cursor:pointer;
+  }
+  .nytimes-added-row .nyt-rank{width:24px;flex-shrink:0;color:var(--muted);font-weight:700;}
+  .nytimes-added-row .nyt-info{flex:1;min-width:140px;display:flex;flex-direction:column;font-size:13px;}
+  .nytimes-added-row .nyt-director{color:var(--muted);font-size:12px;}
+  .nytimes-added-row .nyt-status{font-size:12px;color:var(--muted);flex-shrink:0;}
+  .nytimes-added-row button{flex-shrink:0;}
+  @media (max-width:600px){
+    .nytimes-added-row .nyt-status{display:none;}
+    .nytimes-added-row button{width:100%;order:99;margin-top:2px;}
+  }
   .vu-toggle-label:hover{color:var(--text);}
   .quick-episode-row.just-watched{
     background:var(--accent-2) !important;
@@ -490,6 +504,8 @@
   <section class="view" id="view-dashboard">
     <h3 style="margin-top:0;">🎬 Les films</h3>
     <div class="stat-cards" id="stat-cards-films"></div>
+    <h3 style="margin-top:20px;font-size:15px;">Top 5 réalisateurs (Ma liste + 100 NYTimes)</h3>
+    <div id="dash-top-directors"></div>
 
     <h3 style="margin-top:28px;">📺 Les séries</h3>
     <div class="stat-cards" id="stat-cards-series"></div>
@@ -498,6 +514,9 @@
     <div id="dash-chart"></div>
     <h3 style="margin-top:28px;">Épisodes vus par série</h3>
     <div id="dash-chart-watched"></div>
+
+    <h3 style="margin-top:28px;">🎬 Top 5 réalisateurs (Ma liste + 100 NYTimes)</h3>
+    <div id="dash-top-directors"></div>
 
   </section>
 
@@ -655,7 +674,7 @@
 /* =========================================================
    ETAT / STOCKAGE
    ========================================================= */
-const APP_VERSION = '0.47';
+const APP_VERSION = '0.48';
 
 let state = { films: [], series: [], nytimes: [] };
 let filmsView = 'card';
@@ -1418,23 +1437,20 @@ const NYTIMES_100 = [
 
 function renderNytimesList(){
   const c = document.getElementById('nytimes-list');
-  const showRecommender = !!getCfg().show_recommender;
   c.innerHTML = NYTIMES_100.map((title, idx) => {
     const f = state.nytimes.find(x => x.nytimes_index === idx);
     if(f){
-      // Déjà ajouté : on affiche la fiche comme dans "Ma liste → vue Liste"
+      // Déjà ajouté : mêmes infos que "Ma liste → vue Liste" (sans priorité ni recommandeur)
       return `
-      <div class="episode-row" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;padding:10px 14px;align-items:center;cursor:pointer;" onclick="openNytimesDetailFromRow(this, '${f.id}')">
-        <span style="width:30px;flex-shrink:0;color:var(--muted);font-weight:700;">${idx+1}</span>
+      <div class="nytimes-added-row" onclick="openNytimesDetailFromRow(this, '${f.id}')">
+        <span class="nyt-rank">${idx+1}</span>
         ${f.affiche_url ? `<img class="list-poster" src="${f.affiche_url}">` : ''}
-        <span class="ep-title">
+        <span class="nyt-info">
           <strong>${escapeHtml(f.titre)}</strong> ${f.annee?`(${f.annee})`:''}
-          <span style="color:var(--muted);"> — ${escapeHtml(f.realisateur||'')}</span>
-          <span style="margin-left:6px;">${priorityBadgeSmall(f)}</span>
-          ${showRecommender && f.recommande_par ? `<span style="font-size:11px;color:var(--accent);"> · 👤 ${escapeHtml(f.recommande_par)}</span>` : ''}
+          <span class="nyt-director">${escapeHtml(f.realisateur||'')}</span>
         </span>
-        <span style="font-size:12px;color:var(--muted);flex-shrink:0;">${f.vu ? '✅ Vu' : '⬜ Non vu'}</span>
-        <button class="btn ${f.vu?'secondary':''}" style="flex-shrink:0;" onclick="event.stopPropagation(); toggleNytimesWatched('${f.id}', true)">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button>
+        <span class="nyt-status">${f.vu ? '✅ Vu' : '⬜ Non vu'}</span>
+        <button class="btn ${f.vu?'secondary':''}" onclick="event.stopPropagation(); toggleNytimesWatched('${f.id}', true)">${f.vu ? 'Marquer comme non vu' : 'Marquer comme vu'}</button>
       </div>`;
     }
     return `
@@ -1705,6 +1721,31 @@ function getFilmDuration(f){
   return f.duree || 110; // estimation moyenne si TMDB n'a pas fourni la durée du film
 }
 
+function renderTopDirectors(){
+  const counts = {};
+  [...state.films, ...state.nytimes].forEach(f=>{
+    const dir = (f.realisateur||'').trim();
+    if(!dir) return;
+    counts[dir] = (counts[dir]||0) + 1;
+  });
+  const rows = Object.entries(counts)
+    .map(([name,count])=>({name,count}))
+    .sort((a,b)=>b.count-a.count)
+    .slice(0,5);
+  const c = document.getElementById('dash-top-directors');
+  if(rows.length === 0){
+    c.innerHTML = '<div class="empty-state">Pas encore assez de films avec réalisateur renseigné.</div>';
+    return;
+  }
+  const max = Math.max(1, rows[0].count);
+  c.innerHTML = rows.map(r=>`
+    <div class="dash-row">
+      <div class="label">${escapeHtml(r.name)}</div>
+      <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(6,(r.count/max)*100)}%">${r.count} film${r.count>1?'s':''}</div></div>
+    </div>
+  `).join('');
+}
+
 function renderDashboard(){
   const totalFilms = state.films.length;
   const filmsWatched = state.films.filter(f=>f.vu).length;
@@ -1720,6 +1761,8 @@ function renderDashboard(){
     <div class="stat-card"><div class="num">${nytimesWatched}/100</div><div class="lbl">Films vus (100 NYTimes)</div></div>
     <div class="stat-card"><div class="num">${formatDurationWithHours(filmMinutesWatched)}</div><div class="lbl">Temps de films vu au total</div></div>
   `;
+
+  renderTopDirectors();
 
   const totalSeries = state.series.length;
   let totalEp=0, unwEp=0, unwMinutes=0, watchedMinutes=0;
@@ -1771,6 +1814,30 @@ function renderDashboard(){
       <div class="dash-row" onclick="openSerieDetail('${r.id}')">
         <div class="label">${escapeHtml(r.titre)}</div>
         <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(6,(r.count/watchedMax)*100)}%;background:linear-gradient(90deg, var(--accent-2), var(--accent));">${r.count}${r.minutes ? ' · ' + formatDuration(r.minutes) : ''}</div></div>
+      </div>
+    `).join('');
+  }
+
+  // Top 5 réalisateurs, Ma liste + 100 NYTimes réunis
+  const directorCounts = {};
+  [...state.films, ...state.nytimes].forEach(f=>{
+    const name = (f.realisateur || '').trim();
+    if(!name) return;
+    directorCounts[name] = (directorCounts[name] || 0) + 1;
+  });
+  const topDirectors = Object.entries(directorCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a,b) => b.count - a.count)
+    .slice(0, 5);
+  const topDirectorsMax = topDirectors.length ? Math.max(1, topDirectors[0].count) : 1;
+  const dashTopDirectors = document.getElementById('dash-top-directors');
+  if(topDirectors.length === 0){
+    dashTopDirectors.innerHTML = '<div class="empty-state">Pas encore assez de films avec réalisateur renseigné.</div>';
+  } else {
+    dashTopDirectors.innerHTML = topDirectors.map(r=>`
+      <div class="dash-row">
+        <div class="label">${escapeHtml(r.name)}</div>
+        <div class="dash-bar-bg"><div class="dash-bar" style="width:${Math.max(6,(r.count/topDirectorsMax)*100)}%;background:linear-gradient(90deg, var(--warn), var(--danger));">${r.count} film${r.count>1?'s':''}</div></div>
       </div>
     `).join('');
   }
