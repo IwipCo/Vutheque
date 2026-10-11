@@ -404,12 +404,19 @@ let discoverData = { nowPlaying: [], trendingMovies: [], trendingTv: [], onAir: 
 // sortBy : 'vote' (note décroissante, défaut), 'date' (sortie la plus récente en premier,
 // pour "au cinéma" où la fraîcheur prime sur la note), ou 'popularity' (on garde l'ordre
 // renvoyé par TMDB, déjà classé par tendance/pertinence — ne pas re-trier par note ici).
-async function fetchTmdbList(url, sortBy){
+// Genres de films masqués dans l'onglet Découvrir (TMDB : 27 = Horreur / Épouvante).
+const DISCOVER_EXCLUDED_MOVIE_GENRES = [27];
+
+// excludeGenreIds : liste d'identifiants de genres TMDB à écarter (ex: [27] pour l'horreur).
+async function fetchTmdbList(url, sortBy, excludeGenreIds){
   sortBy = sortBy || 'vote';
   const res = await fetch(url);
   if(!res.ok) throw new Error('Erreur TMDB (' + res.status + ')');
   const data = await res.json();
   let results = data.results || [];
+  if(excludeGenreIds && excludeGenreIds.length){
+    results = results.filter(r => !(r.genre_ids || []).some(g => excludeGenreIds.includes(g)));
+  }
 
   if(sortBy === 'popularity'){
     return results.slice(0, 12);
@@ -447,8 +454,8 @@ async function loadDiscoverContent(force){
   renderDiscoverLoading();
   try{
     const [nowPlaying, trendingMovies, trendingTv, onAir] = await Promise.all([
-      fetchTmdbList(`https://api.themoviedb.org/3/movie/now_playing?api_key=${cfg.tmdb_key}&language=fr-FR&region=FR&page=1`, 'date'),
-      fetchTmdbList(`https://api.themoviedb.org/3/trending/movie/week?api_key=${cfg.tmdb_key}&language=fr-FR`, 'popularity'),
+      fetchTmdbList(`https://api.themoviedb.org/3/movie/now_playing?api_key=${cfg.tmdb_key}&language=fr-FR&region=FR&page=1`, 'date', DISCOVER_EXCLUDED_MOVIE_GENRES),
+      fetchTmdbList(`https://api.themoviedb.org/3/trending/movie/week?api_key=${cfg.tmdb_key}&language=fr-FR`, 'popularity', DISCOVER_EXCLUDED_MOVIE_GENRES),
       fetchTmdbList(`https://api.themoviedb.org/3/trending/tv/week?api_key=${cfg.tmdb_key}&language=fr-FR`, 'popularity'),
       fetchTmdbList(`https://api.themoviedb.org/3/tv/on_the_air?api_key=${cfg.tmdb_key}&language=fr-FR`, 'vote')
     ]);
